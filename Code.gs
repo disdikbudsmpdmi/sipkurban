@@ -307,6 +307,10 @@ function actAdminAccountUpdate_(p, user) {
     pr.setProperty('ADMIN_EMAIL', username);
     if (newPass) pr.setProperty('ADMIN_PASSWORD', newPass);
     var name = pr.getProperty('ADMIN_NAME') || user.name;
+    if (p.name !== undefined) {
+      name = reqStr_(p.name, 'Nama tampilan', 80);
+      pr.setProperty('ADMIN_NAME', name);
+    }
     var token = signToken_({ role: 'admin', name: name, email: username });
     return { token: token, snapshot: buildSnapshot_({ role: 'admin', name: name, email: username }) };
   });

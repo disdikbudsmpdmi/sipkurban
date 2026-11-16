@@ -87,6 +87,11 @@ function renderProfilView(container) {
           <form id="form-admin-account" class="mt-8 pt-6 border-t border-slate-100 space-y-4 text-xs" autocomplete="off">
             <h3 class="font-extrabold text-sm text-slate-800">Akun Admin (Username & Kata Sandi)</h3>
             <div>
+              <label class="block font-bold text-slate-700 mb-1">Nama Tampilan Admin</label>
+              <input type="text" id="acc-name" value="${user.name || ''}" required maxlength="80" class="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 outline-none focus:border-[#0D47A1]" />
+              <p class="text-[11px] text-slate-400 mt-1">Tampil di header dan kolom "Dicatat oleh" pada setoran baru.</p>
+            </div>
+            <div>
               <label class="block font-bold text-slate-700 mb-1">Username Admin</label>
               <input type="text" id="acc-username" value="${user.email || ''}" required autocapitalize="none" class="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 outline-none focus:border-[#0D47A1]" />
             </div>
@@ -137,6 +142,7 @@ function renderProfilView(container) {
       }
       await runBusy(btn, async () => {
         const res = await apiCall('admin_account_update', {
+          name: document.getElementById('acc-name').value.trim(),
           username: document.getElementById('acc-username').value.trim(),
           newPassword: newPass,
           currentPassword: document.getElementById('acc-current').value
