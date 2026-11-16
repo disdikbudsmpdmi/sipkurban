@@ -124,7 +124,7 @@ function renderLoginView() {
                 <label class="block text-xs font-bold text-slate-700 mb-1.5">Email Admin Panitia RT</label>
                 <div class="relative">
                   <i data-lucide="mail" class="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2"></i>
-                  <input type="email" id="admin-email" required placeholder="admin@rt05.id"
+                  <input type="email" id="admin-email" required placeholder="admin@rt.id"
                     class="w-full pl-10 pr-4 py-3 rounded-xl border border-slate-200 bg-slate-50/50 focus:bg-white focus:border-[#0D47A1] focus:ring-2 focus:ring-blue-500/20 outline-none text-sm transition-all" />
                 </div>
               </div>
@@ -144,7 +144,7 @@ function renderLoginView() {
                   <i data-lucide="sparkles" class="w-3.5 h-3.5"></i>
                   Isi Akun Demo Admin Panitia
                 </button>
-                <span class="text-[11px] text-slate-400">Demo: admin@rt05.id</span>
+                <span class="text-[11px] text-slate-400">Demo: admin@rt.id</span>
               </div>
               ` : ''}
 
@@ -216,7 +216,7 @@ window.fillDemoWarga = function () {
 };
 
 window.fillDemoAdmin = function () {
-  document.getElementById('admin-email').value = 'admin@rt05.id';
+  document.getElementById('admin-email').value = 'admin@rt.id';
   document.getElementById('admin-password').value = 'admin123';
   showToast('Kredensial demo Admin Panitia RT diisikan!', 'info');
 };
