@@ -553,7 +553,7 @@ function renderLaporanView(container) {
             <p class="text-slate-600">${tanggalCetak}</p>
             <p class="font-bold text-slate-800">Ketua / Bendahara Panitia Kurban</p>
             <div class="h-16"></div>
-            <p class="font-extrabold text-slate-900 underline">( H. Hendra Wijaya )</p>
+            <p class="font-extrabold text-slate-900 underline">( H. Iwin )</p>
             <p class="text-[10px] text-slate-400 mt-0.5">Panitia Pelaksana Kurban ${tahunHijriah}</p>
           </div>
         </div>
