@@ -29,7 +29,7 @@ function renderPengumumanView(container) {
                   <i data-lucide="megaphone" class="w-5 h-5"></i>
                 </div>
                 <div>
-                  <span class="text-[11px] font-bold text-[#0D47A1]">${ann.tanggalPost} • Oleh ${ann.penulis}</span>
+                  <span class="text-[11px] font-bold text-[#0D47A1]">${fmtTgl(ann.tanggalPost)} • Oleh ${ann.penulis}</span>
                   <h3 class="font-extrabold text-base text-slate-800 mt-0.5">${ann.judul}</h3>
                   <p class="text-xs sm:text-sm text-slate-600 mt-2 leading-relaxed">${ann.isiPesan}</p>
                 </div>

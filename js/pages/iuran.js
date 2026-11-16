@@ -54,7 +54,7 @@ function renderIuranView(container) {
                 <tr class="hover:bg-blue-50/30 transition-colors">
                   <td class="py-3.5 px-4">
                     <div class="font-extrabold text-[#0D47A1]">${t.idTransaksi}</div>
-                    <div class="text-[11px] text-slate-400">${t.tanggalSetor}</div>
+                    <div class="text-[11px] text-slate-400">${fmtTgl(t.tanggalSetor)}</div>
                   </td>
                   <td class="py-3.5 px-4">
                     <div class="font-bold text-slate-800">${t.namaWarga}</div>
@@ -214,7 +214,7 @@ window.openModalKuitansi = function (idTransaksi) {
           </div>
           <div class="flex justify-between">
             <span class="text-slate-500">Tanggal & Metode:</span>
-            <span class="font-semibold text-slate-700">${trx.tanggalSetor} • ${trx.metodeBayar}</span>
+            <span class="font-semibold text-slate-700">${fmtTgl(trx.tanggalSetor)} • ${trx.metodeBayar}</span>
           </div>
           <div class="flex justify-between">
             <span class="text-slate-500">Keterangan:</span>

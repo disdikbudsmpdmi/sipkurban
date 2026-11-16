@@ -24,7 +24,7 @@ window.exportLaporanCSV = () => {
   const escapeCSV = (val) => `"${unesc(val ?? '').replace(/"/g, '""')}"`;
 
   if (f.type === 'rekap_warga') {
-    filename = `Rekapitulasi_Iuran_Kurban_${new Date().toISOString().slice(0, 10)}.csv`;
+    filename = `Rekapitulasi_Iuran_Kurban_${fmtTgl(new Date())}.csv`;
     csvRows.push(['No', 'ID Warga', 'Nama Lengkap', 'Blok Rumah', 'No HP', 'Jenis Kurban', 'Kelompok Hewan', 'Target Iuran (Rp)', 'Total Terbayar (Rp)', 'Sisa Tagihan (Rp)', 'Status'].map(escapeCSV).join(','));
     const filtered = getFilteredWargaForReport();
     filtered.forEach((w, idx) => {
@@ -36,17 +36,17 @@ window.exportLaporanCSV = () => {
       ].map(escapeCSV).join(','));
     });
   } else if (f.type === 'mutasi_kas') {
-    filename = `Mutasi_Kas_Iuran_Kurban_${new Date().toISOString().slice(0, 10)}.csv`;
+    filename = `Mutasi_Kas_Iuran_Kurban_${fmtTgl(new Date())}.csv`;
     csvRows.push(['No', 'No Kuitansi', 'Tanggal Setor', 'ID Warga', 'Nama Warga', 'Nominal (Rp)', 'Metode Bayar', 'Dicatat Oleh', 'Catatan'].map(escapeCSV).join(','));
     const filtered = getFilteredTransaksiForReport();
     filtered.forEach((t, idx) => {
       csvRows.push([
-        idx + 1, t.idTransaksi, t.tanggalSetor, t.idWarga, t.namaWarga,
+        idx + 1, t.idTransaksi, fmtTgl(t.tanggalSetor), t.idWarga, t.namaWarga,
         t.nominal, t.metodeBayar, t.dicatatOleh, t.catatan || '-'
       ].map(escapeCSV).join(','));
     });
   } else if (f.type === 'kelompok_hewan') {
-    filename = `Daftar_Kelompok_Hewan_Kurban_${new Date().toISOString().slice(0, 10)}.csv`;
+    filename = `Daftar_Kelompok_Hewan_Kurban_${fmtTgl(new Date())}.csv`;
     csvRows.push(['No', 'Kode Kelompok', 'Nama Kelompok', 'Jenis Hewan', 'Kapasitas', 'Terisi', 'Status Pengadaan', 'Daftar Nama Anggota'].map(escapeCSV).join(','));
     const filteredKlp = APP_STATE.kelompok.filter(k => f.jenisKurban === 'semua' || k.jenisHewan === f.jenisKurban);
     filteredKlp.forEach((k, idx) => {
@@ -65,7 +65,7 @@ window.exportLaporanCSV = () => {
     const trxWarga = targetWarga ? APP_STATE.transaksi.filter(t => t.idWarga === targetWarga.idWarga) : [];
     trxWarga.forEach((t, idx) => {
       csvRows.push([
-        idx + 1, t.idTransaksi, t.tanggalSetor, t.nominal, t.metodeBayar, t.dicatatOleh, t.catatan || '-'
+        idx + 1, t.idTransaksi, fmtTgl(t.tanggalSetor), t.nominal, t.metodeBayar, t.dicatatOleh, t.catatan || '-'
       ].map(escapeCSV).join(','));
     });
   }
@@ -122,9 +122,7 @@ function renderLaporanView(container) {
   const s = APP_STATE.settings;
   const rtName = s?.namaRT || 'RT 05 / RW 03 Perumahan Griya Asri';
   const tahunHijriah = s?.tahunHijriah || '1448 H / 2027 M';
-  const tanggalCetak = new Date().toLocaleDateString('id-ID', {
-    weekday: 'long', day: '2-digit', month: 'long', year: 'numeric'
-  });
+  const tanggalCetak = fmtTgl(new Date());
 
   const totalTargetAll = APP_STATE.warga.reduce((acc, w) => acc + Number(w.targetIuran || 0), 0);
   const totalTerkumpulAll = APP_STATE.warga.reduce((acc, w) => acc + Number(w.totalTerbayar || 0), 0);
@@ -201,7 +199,7 @@ function renderLaporanView(container) {
     `;
   } else if (f.type === 'mutasi_kas') {
     judulDokumen = 'LAPORAN MUTASI KAS & RIWAYAT SETORAN IURAN KURBAN';
-    const periodeTxt = (f.tglMulai || f.tglSelesai) ? `${f.tglMulai || 'Awal'} s/d ${f.tglSelesai || 'Sekarang'}` : 'Seluruh Periode';
+    const periodeTxt = (f.tglMulai || f.tglSelesai) ? `${fmtTgl(f.tglMulai) || 'Awal'} s/d ${fmtTgl(f.tglSelesai) || 'Sekarang'}` : 'Seluruh Periode';
     subJudulDokumen = `Periode: ${periodeTxt} • Metode Bayar: ${f.metodeBayar === 'semua' ? 'Semua Metode (Tunai & Transfer)' : f.metodeBayar}`;
     const listTrx = getFilteredTransaksiForReport();
     const totalKasMasuk = listTrx.reduce((a, t) => a + Number(t.nominal || 0), 0);
@@ -228,7 +226,7 @@ function renderLaporanView(container) {
               <tr class="${i % 2 === 1 ? 'bg-slate-50/50' : 'bg-white'}">
                 <td class="border border-slate-300 py-2 px-2.5 text-center">${i + 1}</td>
                 <td class="border border-slate-300 py-2 px-2.5 font-bold text-[#0D47A1]">${t.idTransaksi}</td>
-                <td class="border border-slate-300 py-2 px-2.5 whitespace-nowrap">${t.tanggalSetor}</td>
+                <td class="border border-slate-300 py-2 px-2.5 whitespace-nowrap">${fmtTgl(t.tanggalSetor)}</td>
                 <td class="border border-slate-300 py-2 px-2.5 font-bold">${t.namaWarga} <span class="font-normal text-slate-500">(${t.idWarga})</span></td>
                 <td class="border border-slate-300 py-2 px-2.5">${t.metodeBayar}</td>
                 <td class="border border-slate-300 py-2 px-2.5 text-slate-600">${t.catatan || '-'}</td>
@@ -352,7 +350,7 @@ function renderLaporanView(container) {
               <tr>
                 <td class="border border-slate-300 py-2 px-2.5 text-center">${idx + 1}</td>
                 <td class="border border-slate-300 py-2 px-2.5 font-bold text-[#0D47A1]">${t.idTransaksi}</td>
-                <td class="border border-slate-300 py-2 px-2.5">${t.tanggalSetor}</td>
+                <td class="border border-slate-300 py-2 px-2.5">${fmtTgl(t.tanggalSetor)}</td>
                 <td class="border border-slate-300 py-2 px-2.5">${t.metodeBayar}</td>
                 <td class="border border-slate-300 py-2 px-2.5">${t.catatan || '-'}</td>
                 <td class="border border-slate-300 py-2 px-2.5">${t.dicatatOleh}</td>

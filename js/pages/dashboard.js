@@ -331,19 +331,19 @@ function renderDashboardView(container) {
 
           <div class="space-y-3">
             ${APP_STATE.jadwal.slice(0, 3).map(j => {
-              const parts = (j.tanggal || '17 Mei').split(' ');
+              const tglJ = parseTanggalAgenda(j.tanggal);
               const badgeStyle = j.status === 'Selesai'
                 ? 'bg-emerald-50 text-emerald-700'
                 : (j.status === 'Berlangsung' ? 'bg-blue-50 text-[#0D47A1]' : 'bg-amber-50 text-amber-700');
               return `
                 <div class="flex items-center gap-3 p-2.5 rounded-xl bg-[#F4F7FE]/80 border border-slate-100">
                   <div class="w-12 h-12 rounded-xl bg-white border border-slate-200/80 flex flex-col items-center justify-center shrink-0 shadow-2xs">
-                    <span class="text-sm font-extrabold text-[#0D47A1] leading-none">${parts[0] || '17'}</span>
-                    <span class="text-[10px] font-bold text-slate-400 uppercase mt-0.5">${parts[1] || 'MEI'}</span>
+                    <span class="text-sm font-extrabold text-[#0D47A1] leading-none">${tglJ ? String(tglJ.d).padStart(2, '0') : '--'}</span>
+                    <span class="text-[10px] font-bold text-slate-400 uppercase mt-0.5">${tglJ ? BULAN_SINGKAT[tglJ.m] : ''}</span>
                   </div>
                   <div class="flex-1 min-w-0">
                     <div class="text-xs font-bold text-slate-800 truncate">${j.judulKegiatan}</div>
-                    <div class="text-[11px] text-slate-400 truncate mt-0.5">${j.waktu} • ${j.lokasi}</div>
+                    <div class="text-[11px] text-slate-400 truncate mt-0.5">${fmtTgl(j.tanggal)} • ${fmtWaktu(j.waktu)} • ${j.lokasi}</div>
                   </div>
                   <span class="px-2 py-1 rounded-lg text-[10px] font-bold shrink-0 ${badgeStyle}">
                     ${j.status}
@@ -373,7 +373,7 @@ function renderDashboardView(container) {
                   <div class="min-w-0">
                     <h4 class="text-xs font-extrabold text-slate-800 leading-snug">${ann.judul}</h4>
                     <p class="text-[11px] text-slate-600 mt-1 line-clamp-2 leading-relaxed">${ann.isiPesan}</p>
-                    <div class="text-[10px] font-semibold text-slate-400 mt-2">${ann.tanggalPost} • ${ann.penulis}</div>
+                    <div class="text-[10px] font-semibold text-slate-400 mt-2">${fmtTgl(ann.tanggalPost)} • ${ann.penulis}</div>
                   </div>
                 </div>
               </div>

@@ -32,8 +32,8 @@ const APP_STATE = {
 //   sebelum jam mulai di tanggal agenda -> Akan Datang
 //   sejak jam mulai s.d. akhir tanggal agenda -> Berlangsung
 //   setelah tanggal agenda terlewat -> Selesai
-// Format tanggal: "17 Mei 2027" / "17 Mei" tdk didukung / "2027-05-17" / "17/05/2027".
-// Format jam: "08:00 WIB" atau rentang "08:00 - 14:00 WIB" (jam pertama = jam mulai).
+// Format tanggal: "17-05-2027" (utama) / "17 Mei 2027" / "2027-05-17" / "17/05/2027".
+// Format jam: "08:00" (atau "08:00 WIB") atau rentang "08:00 - 14:00" (jam pertama = jam mulai).
 // -------------------------------------------------------------------------
 const BULAN_MAP = {
   jan: 0, feb: 1, mar: 2, apr: 3, mei: 4, may: 4, jun: 5, jul: 6,
@@ -68,6 +68,50 @@ function hitungStatusAgenda(j, now = new Date()) {
 function refreshJadwalStatus() {
   const now = new Date();
   APP_STATE.jadwal.forEach(j => { j.status = hitungStatusAgenda(j, now); });
+}
+
+// -------------------------------------------------------------------------
+// FORMAT TANGGAL & JAM TAMPILAN: tanggal "dd-mm-yyyy", jam "HH:mm WIB"
+// Menerima "2027-05-17", "2027-05-17T07:00:00", "17 Mei 2027", "17/05/2027", Date.
+// -------------------------------------------------------------------------
+const BULAN_SINGKAT = ['JAN', 'FEB', 'MAR', 'APR', 'MEI', 'JUN', 'JUL', 'AGU', 'SEP', 'OKT', 'NOV', 'DES'];
+
+function fmtTgl(v) {
+  if (v === null || v === undefined || v === '') return '';
+  const p2 = n => String(n).padStart(2, '0');
+  if (v instanceof Date) {
+    return isNaN(v) ? '' : `${p2(v.getDate())}-${p2(v.getMonth() + 1)}-${v.getFullYear()}`;
+  }
+  const t = parseTanggalAgenda(String(v));
+  return t ? `${p2(t.d)}-${p2(t.m + 1)}-${t.y}` : String(v);
+}
+
+function fmtWaktu(v) {
+  const t = unesc(v || '').trim();
+  if (!t) return '';
+  return /[A-Za-z]/.test(t) ? t : `${t} WIB`;
+}
+
+// Mask input tanggal: otomatis menyisipkan "-" -> dd-mm-yyyy
+window.maskTanggalInput = function (el) {
+  const d = el.value.replace(/\D/g, '').slice(0, 8);
+  let out = d.slice(0, 2);
+  if (d.length > 2) out += '-' + d.slice(2, 4);
+  if (d.length > 4) out += '-' + d.slice(4);
+  el.value = out;
+};
+
+// Validasi ketat "dd-mm-yyyy" (tanggal harus benar-benar ada di kalender)
+function validTglDMY(teks) {
+  const m = String(teks || '').trim().match(/^(\d{2})-(\d{2})-(\d{4})$/);
+  if (!m) return false;
+  const d = new Date(+m[3], +m[2] - 1, +m[1]);
+  return d.getFullYear() === +m[3] && d.getMonth() === +m[2] - 1 && d.getDate() === +m[1];
+}
+
+// Validasi jam "HH:mm" atau rentang "HH:mm - HH:mm" (24 jam)
+function validJam(teks) {
+  return /^([01]\d|2[0-3]):[0-5]\d(\s*-\s*([01]\d|2[0-3]):[0-5]\d)?$/.test(String(teks || '').trim());
 }
 
 function formatRupiah(angka) {
