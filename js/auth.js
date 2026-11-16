@@ -60,7 +60,7 @@ function renderLoginView() {
             <div class="mb-6">
               <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-bold bg-blue-50 text-[#0D47A1] mb-2">
                 <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-                ${CONFIG.API_URL ? 'Terhubung ke Google Spreadsheet' : 'Backend belum dikonfigurasi'}
+                ${CONFIG.API_URL ? 'Terhubung ke Server' : 'Backend belum dikonfigurasi'}
               </span>
               <h2 class="text-xl sm:text-2xl font-extrabold text-slate-800">Masuk ke Portal Kurban</h2>
               ${CONFIG.API_URL ? '' : `<div class="mt-2 p-3 rounded-xl bg-amber-50 border border-amber-200 text-[11px] text-amber-800 leading-relaxed"><strong>API_URL belum diisi.</strong> Deploy backend Apps Script, lalu tempel URL <code>/exec</code> ke <code>js/config.js</code>. Lihat README.md.</div>`}
