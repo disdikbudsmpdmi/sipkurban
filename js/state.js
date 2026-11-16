@@ -27,6 +27,49 @@ const APP_STATE = {
   }
 };
 
+// -------------------------------------------------------------------------
+// STATUS AGENDA OTOMATIS (mengikuti tanggal & jam agenda, memakai jam perangkat)
+//   sebelum jam mulai di tanggal agenda -> Akan Datang
+//   sejak jam mulai s.d. akhir tanggal agenda -> Berlangsung
+//   setelah tanggal agenda terlewat -> Selesai
+// Format tanggal: "17 Mei 2027" / "17 Mei" tdk didukung / "2027-05-17" / "17/05/2027".
+// Format jam: "08:00 WIB" atau rentang "08:00 - 14:00 WIB" (jam pertama = jam mulai).
+// -------------------------------------------------------------------------
+const BULAN_MAP = {
+  jan: 0, feb: 1, mar: 2, apr: 3, mei: 4, may: 4, jun: 5, jul: 6,
+  agu: 7, agt: 7, ags: 7, aug: 7, sep: 8, okt: 9, oct: 9, nov: 10, des: 11, dec: 11
+};
+
+function parseTanggalAgenda(teks) {
+  const t = unesc(teks).trim();
+  let m = t.match(/(\d{1,2})\s+([A-Za-z]+)\.?,?\s+(\d{4})/);
+  if (m) {
+    const bln = BULAN_MAP[m[2].toLowerCase().slice(0, 3)];
+    if (bln !== undefined) return { y: +m[3], m: bln, d: +m[1] };
+  }
+  m = t.match(/(\d{4})-(\d{1,2})-(\d{1,2})/);
+  if (m) return { y: +m[1], m: +m[2] - 1, d: +m[3] };
+  m = t.match(/(\d{1,2})[\/.-](\d{1,2})[\/.-](\d{4})/);
+  if (m) return { y: +m[3], m: +m[2] - 1, d: +m[1] };
+  return null;
+}
+
+function hitungStatusAgenda(j, now = new Date()) {
+  const tgl = parseTanggalAgenda(j.tanggal);
+  if (!tgl) return j.status;   // tanggal tak terbaca: pakai status tersimpan
+  const jam = unesc(j.waktu).match(/(\d{1,2})[:.](\d{2})/);
+  const mulai = new Date(tgl.y, tgl.m, tgl.d, jam ? +jam[1] : 0, jam ? +jam[2] : 0);
+  const akhirHari = new Date(tgl.y, tgl.m, tgl.d + 1, 0, 0);
+  if (now < mulai) return 'Akan Datang';
+  if (now < akhirHari) return 'Berlangsung';
+  return 'Selesai';
+}
+
+function refreshJadwalStatus() {
+  const now = new Date();
+  APP_STATE.jadwal.forEach(j => { j.status = hitungStatusAgenda(j, now); });
+}
+
 function formatRupiah(angka) {
   return new Intl.NumberFormat('id-ID', {
     style: 'currency',
@@ -104,6 +147,7 @@ function applySnapshot(snap) {
   APP_STATE.transaksi = (snap.transaksi || []).slice().sort((a, b) => (b.tanggalSetor || '').localeCompare(a.tanggalSetor || ''));
   APP_STATE.kelompok = snap.kelompok || [];
   APP_STATE.jadwal = snap.jadwal || [];
+  refreshJadwalStatus();
   APP_STATE.pengumuman = snap.pengumuman || [];
   APP_STATE.tren = snap.tren || [];
 
