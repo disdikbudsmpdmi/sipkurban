@@ -36,9 +36,9 @@ function renderMainApp() {
       <div class="flex flex-1">
         <!-- FIXED LEFT SIDEBAR (DESKTOP >= 1024px) -->
         <aside class="hidden lg:flex lg:flex-col lg:w-64 lg:fixed lg:inset-y-0 bg-white border-r border-slate-200/80 z-30 justify-between">
-          <div>
+          <div class="flex flex-col flex-1 min-h-0">
             <!-- Brand Logo Header -->
-            <div class="px-6 py-5 border-b border-slate-100 flex items-center gap-3">
+            <div class="px-6 py-5 border-b border-slate-100 flex items-center gap-3 shrink-0">
               <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-[#0A3D91] to-[#1976D2] text-white flex items-center justify-center shadow-md shadow-blue-900/15 shrink-0 overflow-hidden">
                 <img src="${logoUrl}" alt="Logo RT" class="w-full h-full object-cover" onerror="this.src='https://placehold.co/128x128/0D47A1/FFFFFF?text=RT'" />
               </div>
@@ -49,7 +49,7 @@ function renderMainApp() {
             </div>
 
             <!-- Daftar Menu Navigasi -->
-            <nav class="p-4 space-y-1.5">
+            <nav class="sidebar-nav flex-1 min-h-0 overflow-y-auto overscroll-contain p-4 space-y-1.5">
               ${MENU_ITEMS.map(item => {
                 const active = APP_STATE.activeMenu === item.id;
                 return `
@@ -75,8 +75,8 @@ function renderMainApp() {
             </nav>
           </div>
 
-          <!-- Kartu Kutipan Ibadah di Bawah Sidebar -->
-          <div class="p-4">
+          <!-- Kartu Kutipan Ibadah di Bawah Sidebar (disembunyikan di layar pendek) -->
+          <div class="sidebar-quote p-4 shrink-0">
             <div class="bg-gradient-to-br from-blue-50 to-indigo-50/80 border border-blue-100 rounded-2xl p-4 text-center">
               <div class="w-10 h-10 mx-auto rounded-xl bg-[#0D47A1] text-white flex items-center justify-center mb-2.5 shadow-sm">
                 <i data-lucide="heart-handshake" class="w-5 h-5"></i>

@@ -97,3 +97,15 @@ html, body {
   50%  { transform: scaleX(0.7); }
   100% { transform: scaleX(0.98); }
 }
+
+/* Sidebar desktop: daftar menu bisa di-scroll bila melebihi tinggi layar */
+.sidebar-nav {
+  scrollbar-width: thin;
+  scrollbar-color: #CBD5E1 transparent;
+}
+.sidebar-nav::-webkit-scrollbar { width: 6px; }
+.sidebar-nav::-webkit-scrollbar-thumb { background: #CBD5E1; border-radius: 9999px; }
+.sidebar-nav::-webkit-scrollbar-track { background: transparent; }
+@media (max-height: 760px) {
+  .sidebar-quote { display: none; }
+}
