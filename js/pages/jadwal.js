@@ -77,18 +77,18 @@ window.openModalTambahJadwal = function () {
         <div class="grid grid-cols-2 gap-3">
           <div>
             <label class="block font-bold text-slate-700 mb-1">Tanggal</label>
-            <input type="text" id="jdw-tgl" required inputmode="numeric" maxlength="10" oninput="maskTanggalInput(this)" placeholder="dd-mm-yyyy, cth: 17-05-2027" pattern="\\d{2}-\\d{2}-\\d{4}" class="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 outline-none focus:border-[#0D47A1]" />
+            <input type="date" id="jdw-tgl" required class="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 outline-none focus:border-[#0D47A1]" />
           </div>
           <div>
             <label class="block font-bold text-slate-700 mb-1">Waktu</label>
-            <input type="text" id="jdw-waktu" required maxlength="13" placeholder="HH:mm, cth: 08:00" pattern="([01]\\d|2[0-3]):[0-5]\\d(\\s*-\\s*([01]\\d|2[0-3]):[0-5]\\d)?" class="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 outline-none focus:border-[#0D47A1]" />
+            <input type="time" id="jdw-waktu" required class="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 outline-none focus:border-[#0D47A1]" />
           </div>
         </div>
         <div>
           <label class="block font-bold text-slate-700 mb-1">Lokasi</label>
           <input type="text" id="jdw-lokasi" required placeholder="Masjid Al-Ikhlas RT 05" class="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 outline-none focus:border-[#0D47A1]" />
         </div>
-        <p class="text-[11px] text-slate-400">Format tanggal dd-mm-yyyy (cth: 17-05-2027) dan jam 24 jam HH:mm (cth: 08:00, waktu WIB) agar status terbaca otomatis.</p>
+        <p class="text-[11px] text-slate-400">Pilih tanggal dan jam (WIB) dari kalender/jam agar status agenda terbaca otomatis.</p>
         <div class="pt-3 flex justify-end gap-2">
           <button type="button" onclick="closeModal()" class="px-4 py-2.5 rounded-xl bg-slate-100 text-slate-600 font-bold cursor-pointer">Batal</button>
           <button type="submit" class="px-5 py-2.5 rounded-xl bg-[#0D47A1] text-white font-bold cursor-pointer">Simpan Agenda</button>
@@ -101,12 +101,8 @@ window.openModalTambahJadwal = function () {
     e.preventDefault();
     const btn = e.submitter || e.target.querySelector('[type=submit]');
     await runBusy(btn, async () => {
-      if (!validTglDMY(document.getElementById('jdw-tgl').value)) {
-        showToast('Format tanggal tidak valid. Gunakan dd-mm-yyyy, contoh: 17-05-2027', 'error');
-        return;
-      }
-      if (!validJam(document.getElementById('jdw-waktu').value)) {
-        showToast('Format jam tidak valid. Gunakan HH:mm, contoh: 08:00', 'error');
+      if (!document.getElementById('jdw-tgl').value || !document.getElementById('jdw-waktu').value) {
+        showToast('Tanggal dan waktu wajib diisi.', 'error');
         return;
       }
       await apiCall('jadwal_add', {
@@ -126,6 +122,10 @@ window.openModalEditJadwal = function (docId) {
   const j = APP_STATE.jadwal.find(x => x._docId === docId);
   if (!j) return;
   const inp = 'w-full px-3.5 py-2.5 rounded-xl border border-slate-200 outline-none focus:border-[#0D47A1]';
+  const tg = parseTanggalAgenda(j.tanggal);
+  const tglIso = tg ? `${tg.y}-${String(tg.m + 1).padStart(2, '0')}-${String(tg.d).padStart(2, '0')}` : '';
+  const jm = unesc(j.waktu).match(/(\d{1,2})[:.](\d{2})/);
+  const jamVal = jm ? `${jm[1].padStart(2, '0')}:${jm[2]}` : '';
 
   openModal(`
     <div class="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl border border-slate-200">
@@ -141,18 +141,18 @@ window.openModalEditJadwal = function (docId) {
         <div class="grid grid-cols-2 gap-3">
           <div>
             <label class="block font-bold text-slate-700 mb-1">Tanggal</label>
-            <input type="text" id="jdw-tgl" required inputmode="numeric" maxlength="10" oninput="maskTanggalInput(this)" placeholder="dd-mm-yyyy" pattern="\\d{2}-\\d{2}-\\d{4}" value="${fmtTgl(j.tanggal)}" class="${inp}" />
+            <input type="date" id="jdw-tgl" required value="${tglIso}" class="${inp}" />
           </div>
           <div>
             <label class="block font-bold text-slate-700 mb-1">Waktu</label>
-            <input type="text" id="jdw-waktu" required maxlength="13" placeholder="HH:mm" pattern="([01]\\d|2[0-3]):[0-5]\\d(\\s*-\\s*([01]\\d|2[0-3]):[0-5]\\d)?" value="${unesc(j.waktu).replace(/\s*WIB\s*$/i, '')}" class="${inp}" />
+            <input type="time" id="jdw-waktu" required value="${jamVal}" class="${inp}" />
           </div>
         </div>
         <div>
           <label class="block font-bold text-slate-700 mb-1">Lokasi</label>
           <input type="text" id="jdw-lokasi" required value="${j.lokasi}" class="${inp}" />
         </div>
-        <p class="text-[11px] text-slate-400">Format tanggal dd-mm-yyyy dan jam HH:mm. Status agenda otomatis mengikuti tanggal & jam (Akan Datang → Berlangsung → Selesai).</p>
+        <p class="text-[11px] text-slate-400">Status agenda otomatis mengikuti tanggal & jam (Akan Datang → Berlangsung → Selesai).</p>
         <div class="pt-3 flex justify-end gap-2">
           <button type="button" onclick="closeModal()" class="px-4 py-2.5 rounded-xl bg-slate-100 text-slate-600 font-bold cursor-pointer">Batal</button>
           <button type="submit" class="px-5 py-2.5 rounded-xl bg-[#0D47A1] text-white font-bold cursor-pointer">Simpan Perubahan</button>
@@ -165,12 +165,8 @@ window.openModalEditJadwal = function (docId) {
     e.preventDefault();
     const btn = e.submitter || e.target.querySelector('[type=submit]');
     await runBusy(btn, async () => {
-      if (!validTglDMY(document.getElementById('jdw-tgl').value)) {
-        showToast('Format tanggal tidak valid. Gunakan dd-mm-yyyy, contoh: 17-05-2027', 'error');
-        return;
-      }
-      if (!validJam(document.getElementById('jdw-waktu').value)) {
-        showToast('Format jam tidak valid. Gunakan HH:mm, contoh: 08:00', 'error');
+      if (!document.getElementById('jdw-tgl').value || !document.getElementById('jdw-waktu').value) {
+        showToast('Tanggal dan waktu wajib diisi.', 'error');
         return;
       }
       await apiCall('jadwal_update', {
