@@ -803,8 +803,15 @@ function actPengumumanDelete_(p) {
 }
 
 function actSettingsUpdate_(p) {
-  var logo = optStr_(p.logoUrl, 500);
-  if (logo && !/^https?:\/\//i.test(logo)) throw new ApiError_('URL logo harus diawali http:// atau https://', 'BAD_REQUEST');
+  var logo = String(p.logoUrl === undefined || p.logoUrl === null ? '' : p.logoUrl).trim();
+  if (logo) {
+    var isData = /^data:image\/(png|jpeg|webp);base64,[A-Za-z0-9+\/=]+$/.test(logo);
+    if (isData) {
+      if (logo.length > 45000) throw new ApiError_('Ukuran logo terlalu besar. Gunakan gambar yang lebih kecil.', 'BAD_REQUEST');
+    } else if (!/^https?:\/\//i.test(logo) || logo.length > 500) {
+      throw new ApiError_('Logo harus berupa gambar yang diupload (PNG/JPG/WEBP).', 'BAD_REQUEST');
+    }
+  }
   var tanggal = optStr_(p.tanggalIdulAdha, 30);
   if (tanggal && !/^\d{4}-\d{2}-\d{2}(T\d{2}:\d{2}:\d{2})?$/.test(tanggal)) throw new ApiError_('Format tanggal Idul Adha tidak valid.', 'BAD_REQUEST');
   if (tanggal && tanggal.length === 10) tanggal += 'T07:00:00';
