@@ -2,6 +2,7 @@
 // 8. HALAMAN 1: DASHBOARD UTAMA (SESUAI BLUEPRINT REFERENSI UI)
 // =========================================================================
 function renderDashboardView(container) {
+  refreshJadwalStatus();
   const user = APP_STATE.currentUser;
   const isAdmin = user.role === 'admin';
 

@@ -3,6 +3,7 @@
 // =========================================================================
 function renderJadwalView(container) {
   const isAdmin = APP_STATE.currentUser.role === 'admin';
+  refreshJadwalStatus();
 
   container.innerHTML = `
     <div class="space-y-6">
@@ -43,9 +44,6 @@ function renderJadwalView(container) {
               </div>
               ${isAdmin ? `
                 <div class="mt-4 pt-3 border-t border-slate-100 flex items-center justify-end gap-2">
-                  <button onclick="ubahStatusJadwal('${j._docId}')" class="text-[11px] font-bold text-[#0D47A1] hover:underline cursor-pointer mr-auto">
-                    Ubah Status
-                  </button>
                   <button onclick="openModalEditJadwal('${j._docId}')" title="Edit Agenda"
                     class="p-1.5 rounded-lg bg-blue-50 hover:bg-[#0D47A1] text-[#0D47A1] hover:text-white transition-all cursor-pointer">
                     <i data-lucide="pencil" class="w-3.5 h-3.5"></i>
@@ -90,6 +88,7 @@ window.openModalTambahJadwal = function () {
           <label class="block font-bold text-slate-700 mb-1">Lokasi</label>
           <input type="text" id="jdw-lokasi" required placeholder="Masjid Al-Ikhlas RT 05" class="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 outline-none focus:border-[#0D47A1]" />
         </div>
+        <p class="text-[11px] text-slate-400">Tulis tanggal seperti \"17 Mei 2027\" dan jam seperti \"08:00 WIB\" agar status terbaca otomatis.</p>
         <div class="pt-3 flex justify-end gap-2">
           <button type="button" onclick="closeModal()" class="px-4 py-2.5 rounded-xl bg-slate-100 text-slate-600 font-bold cursor-pointer">Batal</button>
           <button type="submit" class="px-5 py-2.5 rounded-xl bg-[#0D47A1] text-white font-bold cursor-pointer">Simpan Agenda</button>
@@ -102,6 +101,10 @@ window.openModalTambahJadwal = function () {
     e.preventDefault();
     const btn = e.submitter || e.target.querySelector('[type=submit]');
     await runBusy(btn, async () => {
+      if (!parseTanggalAgenda(document.getElementById('jdw-tgl').value)) {
+        showToast('Format tanggal tidak terbaca. Gunakan contoh: 17 Mei 2027', 'error');
+        return;
+      }
       await apiCall('jadwal_add', {
         tanggal: document.getElementById('jdw-tgl').value.trim(),
         waktu: document.getElementById('jdw-waktu').value.trim(),
@@ -112,17 +115,6 @@ window.openModalTambahJadwal = function () {
       showToast('Agenda baru berhasil ditambahkan!', 'success');
       renderActivePageContent();
     });
-  });
-};
-
-window.ubahStatusJadwal = async function (docId) {
-  const j = APP_STATE.jadwal.find(x => x._docId === docId);
-  if (!j) return;
-  const next = j.status === 'Akan Datang' ? 'Berlangsung' : (j.status === 'Berlangsung' ? 'Selesai' : 'Akan Datang');
-  await runBusy(null, async () => {
-    await apiCall('jadwal_set_status', { docId, status: next });
-    showToast(`Status agenda diperbarui menjadi: ${next}`, 'info');
-    renderActivePageContent();
   });
 };
 
@@ -156,12 +148,7 @@ window.openModalEditJadwal = function (docId) {
           <label class="block font-bold text-slate-700 mb-1">Lokasi</label>
           <input type="text" id="jdw-lokasi" required value="${j.lokasi}" class="${inp}" />
         </div>
-        <div>
-          <label class="block font-bold text-slate-700 mb-1">Status</label>
-          <select id="jdw-status" class="${inp}">
-            ${['Akan Datang', 'Berlangsung', 'Selesai'].map(st => `<option value="${st}" ${st === j.status ? 'selected' : ''}>${st}</option>`).join('')}
-          </select>
-        </div>
+        <p class="text-[11px] text-slate-400">Status agenda otomatis mengikuti tanggal & jam (Akan Datang → Berlangsung → Selesai).</p>
         <div class="pt-3 flex justify-end gap-2">
           <button type="button" onclick="closeModal()" class="px-4 py-2.5 rounded-xl bg-slate-100 text-slate-600 font-bold cursor-pointer">Batal</button>
           <button type="submit" class="px-5 py-2.5 rounded-xl bg-[#0D47A1] text-white font-bold cursor-pointer">Simpan Perubahan</button>
@@ -174,13 +161,17 @@ window.openModalEditJadwal = function (docId) {
     e.preventDefault();
     const btn = e.submitter || e.target.querySelector('[type=submit]');
     await runBusy(btn, async () => {
+      if (!parseTanggalAgenda(document.getElementById('jdw-tgl').value)) {
+        showToast('Format tanggal tidak terbaca. Gunakan contoh: 17 Mei 2027', 'error');
+        return;
+      }
       await apiCall('jadwal_update', {
         docId,
         tanggal: document.getElementById('jdw-tgl').value.trim(),
         waktu: document.getElementById('jdw-waktu').value.trim(),
         judulKegiatan: document.getElementById('jdw-judul').value.trim(),
         lokasi: document.getElementById('jdw-lokasi').value.trim(),
-        status: document.getElementById('jdw-status').value
+        status: j.status
       });
       closeModal();
       showToast('Agenda berhasil diperbarui!', 'success');
