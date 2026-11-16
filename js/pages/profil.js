@@ -43,6 +43,16 @@ function renderProfilView(container) {
                 <input type="text" id="set-tahun" value="${s.tahunHijriah || ''}" class="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 outline-none focus:border-[#0D47A1]" />
               </div>
             </div>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label class="block font-bold text-slate-700 mb-1">Nama Ketua RT (tanda tangan laporan)</label>
+                <input type="text" id="set-ketua-rt" value="${s.namaKetuaRT || ''}" placeholder="Contoh: Bapak Slamet Riyadi" class="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 outline-none focus:border-[#0D47A1]" />
+              </div>
+              <div>
+                <label class="block font-bold text-slate-700 mb-1">Nama Ketua / Bendahara Panitia</label>
+                <input type="text" id="set-ketua-panitia" value="${s.namaKetuaPanitia || ''}" placeholder="Contoh: H. Iwin" class="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 outline-none focus:border-[#0D47A1]" />
+              </div>
+            </div>
             <div>
               <label class="block font-bold text-slate-700 mb-1">Tanggal Idul Adha (untuk hitung mundur dashboard)</label>
               <input type="date" id="set-tanggal" value="${(s.tanggalIdulAdha || '').slice(0, 10)}" class="w-full sm:w-1/2 px-3.5 py-2.5 rounded-xl border border-slate-200 outline-none focus:border-[#0D47A1]" />
@@ -169,6 +179,8 @@ function renderProfilView(container) {
           hargaKambingMandiri: Number(document.getElementById('set-kambing').value),
           kontakPanitia: document.getElementById('set-kontak').value.trim(),
           alamatSekretariat: document.getElementById('set-alamat').value.trim(),
+          namaKetuaRT: document.getElementById('set-ketua-rt').value.trim(),
+          namaKetuaPanitia: document.getElementById('set-ketua-panitia').value.trim(),
           logoUrl: document.getElementById('set-logo').value.trim()
         });
         showToast('Pengaturan lingkungan RT & Logo berhasil disimpan!', 'success');

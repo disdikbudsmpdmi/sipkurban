@@ -40,7 +40,7 @@ var DEFAULT_LOGO = 'https://placehold.co/128x128/0D47A1/FFFFFF?text=RT05';
  */
 var SCHEMA = {
   settings_kurban: {
-    cols: ['_docId', 'namaRT', 'tahunHijriah', 'tanggalIdulAdha', 'hargaSapiPatungan', 'hargaKambingMandiri', 'kontakPanitia', 'alamatSekretariat', 'logoUrl'],
+    cols: ['_docId', 'namaRT', 'tahunHijriah', 'tanggalIdulAdha', 'hargaSapiPatungan', 'hargaKambingMandiri', 'kontakPanitia', 'alamatSekretariat', 'logoUrl', 'namaKetuaRT', 'namaKetuaPanitia'],
     types: { hargaSapiPatungan: 'n', hargaKambingMandiri: 'n' },
     ids: ['_docId']
   },
@@ -816,6 +816,8 @@ function actSettingsUpdate_(p) {
     hargaKambingMandiri: posNum_(p.hargaKambingMandiri, 'Tarif kambing mandiri'),
     kontakPanitia: optStr_(p.kontakPanitia, 100),
     alamatSekretariat: optStr_(p.alamatSekretariat, 200),
+    namaKetuaRT: optStr_(p.namaKetuaRT, 100),
+    namaKetuaPanitia: optStr_(p.namaKetuaPanitia, 100),
     logoUrl: logo || DEFAULT_LOGO
   };
   if (tanggal) updates.tanggalIdulAdha = tanggal;
@@ -823,6 +825,9 @@ function actSettingsUpdate_(p) {
   return withLock_(function () {
     var s = readAll_('settings_kurban')[0];
     if (!s) throw new ApiError_('Data pengaturan tidak ditemukan.', 'NOT_FOUND');
+    // Sinkronkan header sheet lama agar kolom baru (nama ketua RT/panitia) ikut tercatat
+    var shSet = getSheet_('settings_kurban');
+    shSet.getRange(1, 1, 1, SCHEMA.settings_kurban.cols.length).setValues([SCHEMA.settings_kurban.cols]);
     updateRow_('settings_kurban', s._docId, updates);
     return null;
   });
