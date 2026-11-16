@@ -121,10 +121,10 @@ function renderLoginView() {
             <!-- FORM LOGIN ADMIN -->
             <form id="form-login-admin" class="space-y-4 hidden">
               <div>
-                <label class="block text-xs font-bold text-slate-700 mb-1.5">Email Admin Panitia RT</label>
+                <label class="block text-xs font-bold text-slate-700 mb-1.5">Username Admin Panitia RT</label>
                 <div class="relative">
                   <i data-lucide="mail" class="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2"></i>
-                  <input type="email" id="admin-email" required placeholder="admin@rt.id"
+                  <input type="text" id="admin-email" required autocomplete="username" autocapitalize="none" placeholder="username admin"
                     class="w-full pl-10 pr-4 py-3 rounded-xl border border-slate-200 bg-slate-50/50 focus:bg-white focus:border-[#0D47A1] focus:ring-2 focus:ring-blue-500/20 outline-none text-sm transition-all" />
                 </div>
               </div>

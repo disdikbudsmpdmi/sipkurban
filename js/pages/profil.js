@@ -83,6 +83,38 @@ function renderProfilView(container) {
               </button>
             </div>
           </form>
+
+          <form id="form-admin-account" class="mt-8 pt-6 border-t border-slate-100 space-y-4 text-xs" autocomplete="off">
+            <h3 class="font-extrabold text-sm text-slate-800">Akun Admin (Username & Kata Sandi)</h3>
+            <div>
+              <label class="block font-bold text-slate-700 mb-1">Nama Tampilan Admin</label>
+              <input type="text" id="acc-name" value="${user.name || ''}" required maxlength="80" class="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 outline-none focus:border-[#0D47A1]" />
+              <p class="text-[11px] text-slate-400 mt-1">Tampil di header dan kolom "Dicatat oleh" pada setoran baru.</p>
+            </div>
+            <div>
+              <label class="block font-bold text-slate-700 mb-1">Username Admin</label>
+              <input type="text" id="acc-username" value="${user.email || ''}" required autocapitalize="none" class="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 outline-none focus:border-[#0D47A1]" />
+            </div>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label class="block font-bold text-slate-700 mb-1">Kata Sandi Baru <span class="font-normal text-slate-400">(kosongkan jika tidak diganti)</span></label>
+                <input type="password" id="acc-new" autocomplete="new-password" placeholder="Minimal 6 karakter" class="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 outline-none focus:border-[#0D47A1]" />
+              </div>
+              <div>
+                <label class="block font-bold text-slate-700 mb-1">Ulangi Kata Sandi Baru</label>
+                <input type="password" id="acc-confirm" autocomplete="new-password" class="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 outline-none focus:border-[#0D47A1]" />
+              </div>
+            </div>
+            <div>
+              <label class="block font-bold text-slate-700 mb-1">Kata Sandi Saat Ini <span class="text-rose-500">*</span></label>
+              <input type="password" id="acc-current" required autocomplete="current-password" placeholder="Wajib untuk konfirmasi perubahan" class="w-full sm:w-1/2 px-3.5 py-2.5 rounded-xl border border-slate-200 outline-none focus:border-[#0D47A1]" />
+            </div>
+            <div class="pt-2 flex justify-end">
+              <button type="submit" class="px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold cursor-pointer">
+                Simpan Akun Admin
+              </button>
+            </div>
+          </form>
         ` : `
           <div class="mt-6 space-y-3 text-xs">
             <h3 class="font-extrabold text-sm text-slate-800">Informasi Kepesertaan Anda</h3>
@@ -97,6 +129,31 @@ function renderProfilView(container) {
       </div>
     </div>
   `;
+
+  const formAcc = document.getElementById('form-admin-account');
+  if (formAcc) {
+    formAcc.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const btn = e.submitter || e.target.querySelector('[type=submit]');
+      const newPass = document.getElementById('acc-new').value;
+      if (newPass !== document.getElementById('acc-confirm').value) {
+        showToast('Konfirmasi kata sandi baru tidak sama.', 'error');
+        return;
+      }
+      await runBusy(btn, async () => {
+        const res = await apiCall('admin_account_update', {
+          name: document.getElementById('acc-name').value.trim(),
+          username: document.getElementById('acc-username').value.trim(),
+          newPassword: newPass,
+          currentPassword: document.getElementById('acc-current').value
+        });
+        setToken(res.token);          // token lama memuat username lama
+        applySnapshot(res.snapshot);
+        showToast('Akun admin berhasil diperbarui!', 'success');
+        renderMainApp();
+      });
+    });
+  }
 
   const formSet = document.getElementById('form-update-settings');
   if (formSet) {
