@@ -115,6 +115,7 @@ var ROUTES = {
   bootstrap:          { auth: 'user',   fn: actBootstrap_ },
   warga_add:          { auth: 'admin',  fn: actWargaAdd_,         snapshot: true },
   warga_delete:       { auth: 'admin',  fn: actWargaDelete_,      snapshot: true },
+  warga_update:       { auth: 'admin',  fn: actWargaUpdate_,      snapshot: true },
   kelompok_add:       { auth: 'admin',  fn: actKelompokAdd_,      snapshot: true },
   transaksi_add:      { auth: 'admin',  fn: actTransaksiAdd_,     snapshot: true },
   jadwal_add:         { auth: 'admin',  fn: actJadwalAdd_,        snapshot: true },
@@ -475,6 +476,57 @@ function actWargaAdd_(p, user) {
       statusLunas: false
     });
     return { idWarga: idWarga, namaLengkap: nama };
+  });
+}
+
+/**
+ * Edit data peserta + (opsional) reset PIN login.
+ * newPin kosong = PIN tidak diubah. Status lunas dihitung ulang dari target baru.
+ */
+function actWargaUpdate_(p) {
+  var docId = reqStr_(p.docId, 'ID dokumen', 80);
+  var nama = reqStr_(p.namaLengkap, 'Nama lengkap', 80);
+  var blok = reqStr_(p.blokRumah, 'Blok rumah', 40);
+  var hp = reqStr_(p.noHp, 'Nomor HP', 20);
+  if (normPhone_(hp).length < 8) throw new ApiError_('Nomor HP tidak valid.', 'BAD_REQUEST');
+  var jenis = String(p.jenisKurban || '');
+  if (JENIS_KURBAN.indexOf(jenis) < 0) throw new ApiError_('Jenis kurban tidak valid.', 'BAD_REQUEST');
+  var target = posNum_(p.targetIuran, 'Target iuran');
+  var namaKlp = reqStr_(p.kelompokHewan, 'Kelompok hewan', 100);
+  var newPin = String(p.newPin || '').trim();
+  if (newPin && !/^\d{4,6}$/.test(newPin)) throw new ApiError_('PIN harus 4–6 digit angka.', 'BAD_REQUEST');
+
+  return withLock_(function () {
+    var wargaList = readAll_('users_warga');
+    var warga = wargaList.filter(function (w) { return w._docId === docId; })[0];
+    if (!warga) throw new ApiError_('Peserta tidak ditemukan.', 'NOT_FOUND');
+
+    var kelompok = readAll_('kelompok_hewan').filter(function (k) { return k.namaKelompok === namaKlp; })[0];
+    if (!kelompok) throw new ApiError_('Kelompok hewan tidak ditemukan.', 'BAD_REQUEST');
+    if (kelompok.jenisHewan !== jenis) throw new ApiError_('Kelompok "' + namaKlp + '" untuk ' + kelompok.jenisHewan + ', tidak cocok dengan paket ' + jenis + '.', 'BAD_REQUEST');
+    var terisi = wargaList.filter(function (w) { return w.kelompokHewan === namaKlp && w._docId !== docId; }).length;
+    if (terisi >= kelompok.kapasitas) throw new ApiError_('Kelompok "' + namaKlp + '" sudah penuh (' + terisi + '/' + kelompok.kapasitas + ').', 'BAD_REQUEST');
+
+    var phone = normPhone_(hp);
+    if (wargaList.some(function (w) { return w._docId !== docId && normPhone_(w.noHp) === phone; })) {
+      throw new ApiError_('Nomor HP sudah terdaftar pada peserta lain.', 'DUPLICATE');
+    }
+
+    var updates = {
+      namaLengkap: nama, blokRumah: blok, noHp: hp,
+      jenisKurban: jenis, kelompokHewan: namaKlp, targetIuran: target,
+      statusLunas: Number(warga.totalTerbayar || 0) >= target
+    };
+    if (newPin) updates.pinHash = hashPin_(newPin);
+    updateRow_('users_warga', docId, updates);
+
+    // Samakan nama pada riwayat transaksi (kolom namaWarga bersifat salinan).
+    if (nama !== warga.namaLengkap) {
+      readAll_('transaksi_iuran').forEach(function (t) {
+        if (t.idWarga === warga.idWarga) updateRow_('transaksi_iuran', t._docId, { namaWarga: nama });
+      });
+    }
+    return null;
   });
 }
 
