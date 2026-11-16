@@ -21,7 +21,7 @@ async function bootstrapApp() {
 
   // Pulihkan sesi bila token masih tersimpan (sessionStorage).
   if (getToken() && CONFIG.API_URL) {
-    renderSplash('Memuat data dari Google Spreadsheet…');
+    renderSplash('Memuat data..');
     try {
       await refreshAllData();     // snapshot juga membawa data user dari server
       const isAdmin = APP_STATE.currentUser && APP_STATE.currentUser.role === 'admin';
