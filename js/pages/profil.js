@@ -78,14 +78,24 @@ function renderProfilView(container) {
               </div>
             </div>
             <div>
-              <label class="block font-bold text-slate-700 mb-1">URL Logo Aplikasi & KOP Surat Resmi</label>
-              <div class="flex gap-2">
-                <input type="url" id="set-logo" value="${s.logoUrl || ''}" placeholder="https://example.com/logo-rt.png" class="flex-1 px-3.5 py-2.5 rounded-xl border border-slate-200 outline-none focus:border-[#0D47A1]" />
-                <div class="w-10 h-10 rounded-xl border border-slate-200 bg-slate-50 flex items-center justify-center overflow-hidden shrink-0">
-                  <img src="${s.logoUrl || 'https://placehold.co/128x128/0D47A1/FFFFFF?text=RT'}" class="w-full h-full object-cover" onerror="this.src='https://placehold.co/128x128/0D47A1/FFFFFF?text=RT'" />
+              <label class="block font-bold text-slate-700 mb-1">Logo Aplikasi & KOP Surat Resmi</label>
+              <div class="flex items-center gap-3">
+                <div class="w-14 h-14 rounded-xl border border-slate-200 bg-slate-50 flex items-center justify-center overflow-hidden shrink-0">
+                  <img id="set-logo-preview" src="${s.logoUrl || 'https://placehold.co/128x128/0D47A1/FFFFFF?text=RT'}" class="w-full h-full object-cover" onerror="this.src='https://placehold.co/128x128/0D47A1/FFFFFF?text=RT'" />
                 </div>
+                <input type="hidden" id="set-logo" value="${s.logoUrl || ''}" />
+                <input type="file" id="set-logo-file" accept="image/png,image/jpeg,image/webp,image/svg+xml" class="hidden" onchange="handleLogoUpload(this)" />
+                <button type="button" onclick="document.getElementById('set-logo-file').click()"
+                  class="px-4 py-2.5 rounded-xl bg-blue-50 hover:bg-[#0D47A1] text-[#0D47A1] hover:text-white font-bold inline-flex items-center gap-2 transition-all cursor-pointer">
+                  <i data-lucide="upload" class="w-4 h-4"></i>
+                  <span>Upload Logo</span>
+                </button>
+                <button type="button" onclick="hapusLogoUpload()"
+                  class="px-3 py-2.5 rounded-xl bg-slate-100 hover:bg-rose-600 text-slate-600 hover:text-white font-bold cursor-pointer transition-all">
+                  Hapus
+                </button>
               </div>
-              <p class="text-[11px] text-slate-400 mt-1">Masukkan URL gambar logo publik (PNG/JPG/SVG). Logo akan otomatis tampil di sidebar, header, kuitansi, dan KOP cetak laporan A4.</p>
+              <p class="text-[11px] text-slate-400 mt-1">Upload gambar logo (PNG/JPG/WEBP/SVG). Ukuran otomatis diperkecil. Logo akan tampil di sidebar, header, kuitansi, dan KOP cetak laporan A4. Klik "Simpan Perubahan Pengaturan" setelah memilih logo.</p>
             </div>
             <div class="pt-2 flex justify-end">
               <button type="submit" class="px-5 py-2.5 rounded-xl bg-[#0D47A1] hover:bg-blue-800 text-white font-bold cursor-pointer">
@@ -189,3 +199,74 @@ function renderProfilView(container) {
     });
   }
 }
+
+
+// -------------------------------------------------------------------------
+// UPLOAD LOGO: gambar diperkecil di browser (maks 256px) lalu disimpan
+// sebagai data URL pada pengaturan (tanpa perlu hosting gambar).
+// -------------------------------------------------------------------------
+const LOGO_MAX_CHARS = 45000;   // batas aman 1 sel Google Sheets (50.000)
+
+function kompresLogo(file) {
+  return new Promise((resolve, reject) => {
+    const url = URL.createObjectURL(file);
+    const img = new Image();
+    img.onload = () => {
+      URL.revokeObjectURL(url);
+      const png = /png|svg|webp/.test(file.type);
+      for (const maks of [256, 192, 128, 96]) {
+        const skala = Math.min(1, maks / Math.max(img.width || maks, img.height || maks));
+        const w = Math.max(1, Math.round((img.width || maks) * skala));
+        const h = Math.max(1, Math.round((img.height || maks) * skala));
+        const cv = document.createElement('canvas');
+        cv.width = w; cv.height = h;
+        const ctx = cv.getContext('2d');
+        if (!png) { ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, w, h); }
+        ctx.drawImage(img, 0, 0, w, h);
+        let out = png ? cv.toDataURL('image/png') : cv.toDataURL('image/jpeg', 0.85);
+        if (out.length > LOGO_MAX_CHARS) {
+          // PNG terlalu besar: simpan sebagai JPEG berlatar putih
+          const cv2 = document.createElement('canvas');
+          cv2.width = w; cv2.height = h;
+          const c2 = cv2.getContext('2d');
+          c2.fillStyle = '#fff'; c2.fillRect(0, 0, w, h); c2.drawImage(img, 0, 0, w, h);
+          out = cv2.toDataURL('image/jpeg', 0.8);
+        }
+        if (out.length <= LOGO_MAX_CHARS) return resolve(out);
+      }
+      reject(new Error('Gambar terlalu kompleks. Gunakan logo yang lebih sederhana.'));
+    };
+    img.onerror = () => { URL.revokeObjectURL(url); reject(new Error('File gambar tidak dapat dibaca.')); };
+    img.src = url;
+  });
+}
+
+window.handleLogoUpload = async function (input) {
+  const file = input.files && input.files[0];
+  if (!file) return;
+  if (!/^image\/(png|jpeg|webp|svg\+xml)$/.test(file.type)) {
+    showToast('Format logo harus PNG, JPG, WEBP, atau SVG.', 'error');
+    input.value = '';
+    return;
+  }
+  if (file.size > 5 * 1024 * 1024) {
+    showToast('Ukuran file maksimal 5 MB.', 'error');
+    input.value = '';
+    return;
+  }
+  try {
+    const dataUrl = await kompresLogo(file);
+    document.getElementById('set-logo').value = dataUrl;
+    document.getElementById('set-logo-preview').src = dataUrl;
+    showToast('Logo dipilih. Klik "Simpan Perubahan Pengaturan" untuk menerapkan.', 'info');
+  } catch (err) {
+    showToast(err.message || 'Gagal memproses gambar.', 'error');
+  }
+  input.value = '';
+};
+
+window.hapusLogoUpload = function () {
+  document.getElementById('set-logo').value = '';
+  document.getElementById('set-logo-preview').src = 'https://placehold.co/128x128/0D47A1/FFFFFF?text=RT';
+  showToast('Logo dikembalikan ke default. Klik simpan untuk menerapkan.', 'info');
+};
