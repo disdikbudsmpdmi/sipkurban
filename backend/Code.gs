@@ -117,10 +117,17 @@ var ROUTES = {
   warga_delete:       { auth: 'admin',  fn: actWargaDelete_,      snapshot: true },
   warga_update:       { auth: 'admin',  fn: actWargaUpdate_,      snapshot: true },
   kelompok_add:       { auth: 'admin',  fn: actKelompokAdd_,      snapshot: true },
+  kelompok_update:    { auth: 'admin',  fn: actKelompokUpdate_,   snapshot: true },
+  kelompok_delete:    { auth: 'admin',  fn: actKelompokDelete_,   snapshot: true },
   transaksi_add:      { auth: 'admin',  fn: actTransaksiAdd_,     snapshot: true },
+  transaksi_update:   { auth: 'admin',  fn: actTransaksiUpdate_,  snapshot: true },
+  transaksi_delete:   { auth: 'admin',  fn: actTransaksiDelete_,  snapshot: true },
   jadwal_add:         { auth: 'admin',  fn: actJadwalAdd_,        snapshot: true },
+  jadwal_update:      { auth: 'admin',  fn: actJadwalUpdate_,     snapshot: true },
+  jadwal_delete:      { auth: 'admin',  fn: actJadwalDelete_,     snapshot: true },
   jadwal_set_status:  { auth: 'admin',  fn: actJadwalSetStatus_,  snapshot: true },
   pengumuman_add:     { auth: 'admin',  fn: actPengumumanAdd_,    snapshot: true },
+  pengumuman_update:  { auth: 'admin',  fn: actPengumumanUpdate_, snapshot: true },
   pengumuman_delete:  { auth: 'admin',  fn: actPengumumanDelete_, snapshot: true },
   settings_update:    { auth: 'admin',  fn: actSettingsUpdate_,   snapshot: true },
   admin_account_update: { auth: 'admin', fn: actAdminAccountUpdate_ }
@@ -573,6 +580,59 @@ function actKelompokAdd_(p) {
   });
 }
 
+function actKelompokUpdate_(p) {
+  var docId = reqStr_(p.docId, 'ID dokumen', 80);
+  var nama = reqStr_(p.namaKelompok, 'Nama kelompok', 100);
+  var jenis = String(p.jenisHewan || '');
+  if (JENIS_KURBAN.indexOf(jenis) < 0) throw new ApiError_('Jenis hewan tidak valid.', 'BAD_REQUEST');
+  var kapasitas = Math.round(Number(p.kapasitas));
+  if (!(kapasitas >= 1 && kapasitas <= 50)) throw new ApiError_('Kapasitas slot harus 1–50.', 'BAD_REQUEST');
+  var status = reqStr_(p.statusPengadaan, 'Status pengadaan', 100);
+
+  return withLock_(function () {
+    var list = readAll_('kelompok_hewan');
+    var klp = list.filter(function (k) { return k._docId === docId; })[0];
+    if (!klp) throw new ApiError_('Kelompok tidak ditemukan.', 'NOT_FOUND');
+    if (list.some(function (k) { return k._docId !== docId && k.namaKelompok.toLowerCase() === nama.toLowerCase(); })) {
+      throw new ApiError_('Nama kelompok sudah dipakai.', 'DUPLICATE');
+    }
+    var anggota = readAll_('users_warga').filter(function (w) { return w.kelompokHewan === klp.namaKelompok; });
+    if (jenis !== klp.jenisHewan && anggota.length > 0) {
+      throw new ApiError_('Jenis hewan tidak dapat diubah karena sudah ada ' + anggota.length + ' peserta di kelompok ini.', 'BAD_REQUEST');
+    }
+    if (kapasitas < anggota.length) {
+      throw new ApiError_('Kapasitas tidak boleh kurang dari jumlah peserta saat ini (' + anggota.length + ').', 'BAD_REQUEST');
+    }
+
+    var updates = { namaKelompok: nama, jenisHewan: jenis, kapasitas: kapasitas, statusPengadaan: status };
+    if (jenis !== klp.jenisHewan || kapasitas !== Number(klp.kapasitas)) {
+      var s = readAll_('settings_kurban')[0] || {};
+      updates.hargaTotal = jenis === 'Sapi Patungan'
+        ? Number(s.hargaSapiPatungan || 3500000) * kapasitas
+        : Number(s.hargaKambingMandiri || 3200000);
+    }
+    updateRow_('kelompok_hewan', docId, updates);
+
+    // Nama kelompok tersimpan sebagai teks pada data peserta -> samakan.
+    if (nama !== klp.namaKelompok) {
+      anggota.forEach(function (w) { updateRow_('users_warga', w._docId, { kelompokHewan: nama }); });
+    }
+    return null;
+  });
+}
+
+function actKelompokDelete_(p) {
+  var docId = reqStr_(p.docId, 'ID dokumen', 80);
+  return withLock_(function () {
+    var klp = readAll_('kelompok_hewan').filter(function (k) { return k._docId === docId; })[0];
+    if (!klp) throw new ApiError_('Kelompok tidak ditemukan.', 'NOT_FOUND');
+    var n = readAll_('users_warga').filter(function (w) { return w.kelompokHewan === klp.namaKelompok; }).length;
+    if (n > 0) throw new ApiError_('Kelompok masih memiliki ' + n + ' peserta. Pindahkan atau hapus pesertanya terlebih dahulu.', 'BAD_REQUEST');
+    deleteRow_('kelompok_hewan', docId);
+    return null;
+  });
+}
+
 function actTransaksiAdd_(p, user) {
   var idWarga = reqStr_(p.idWarga, 'Warga', 40);
   var nominal = posNum_(p.nominal, 'Nominal setoran');
@@ -612,6 +672,47 @@ function actTransaksiAdd_(p, user) {
   });
 }
 
+// Menyesuaikan total terbayar & status lunas peserta setelah transaksi diubah/dihapus.
+function adjustWargaTotal_(idWarga, delta) {
+  var warga = readAll_('users_warga').filter(function (w) { return w.idWarga === idWarga; })[0];
+  if (!warga) return;   // peserta sudah dihapus: riwayat saja yang diubah
+  var newTotal = Math.max(0, Number(warga.totalTerbayar || 0) + delta);
+  updateRow_('users_warga', warga._docId, {
+    totalTerbayar: newTotal,
+    statusLunas: newTotal >= Number(warga.targetIuran || 0)
+  });
+}
+
+/** Edit setoran. Peserta tidak dapat diganti (hapus lalu catat ulang bila salah peserta). */
+function actTransaksiUpdate_(p) {
+  var docId = reqStr_(p.docId, 'ID dokumen', 80);
+  var nominal = posNum_(p.nominal, 'Nominal setoran');
+  var metode = String(p.metodeBayar || '');
+  if (METODE_BAYAR.indexOf(metode) < 0) throw new ApiError_('Metode pembayaran tidak valid.', 'BAD_REQUEST');
+  var tanggal = String(p.tanggalSetor || '');
+  if (!isValidIsoDate_(tanggal)) throw new ApiError_('Tanggal setor tidak valid.', 'BAD_REQUEST');
+  var catatan = optStr_(p.catatan, 150) || 'Setoran iuran kurban';
+
+  return withLock_(function () {
+    var trx = readAll_('transaksi_iuran').filter(function (t) { return t._docId === docId; })[0];
+    if (!trx) throw new ApiError_('Transaksi tidak ditemukan.', 'NOT_FOUND');
+    updateRow_('transaksi_iuran', docId, { nominal: nominal, metodeBayar: metode, tanggalSetor: tanggal, catatan: catatan });
+    adjustWargaTotal_(trx.idWarga, nominal - Number(trx.nominal || 0));
+    return null;
+  });
+}
+
+function actTransaksiDelete_(p) {
+  var docId = reqStr_(p.docId, 'ID dokumen', 80);
+  return withLock_(function () {
+    var trx = readAll_('transaksi_iuran').filter(function (t) { return t._docId === docId; })[0];
+    if (!trx) throw new ApiError_('Transaksi tidak ditemukan.', 'NOT_FOUND');
+    deleteRow_('transaksi_iuran', docId);
+    adjustWargaTotal_(trx.idWarga, -Number(trx.nominal || 0));
+    return null;
+  });
+}
+
 function actJadwalAdd_(p) {
   return withLock_(function () {
     var list = readAll_('jadwal_kurban');
@@ -624,6 +725,31 @@ function actJadwalAdd_(p) {
       lokasi: reqStr_(p.lokasi, 'Lokasi', 150),
       status: 'Akan Datang'
     });
+    return null;
+  });
+}
+
+function actJadwalUpdate_(p) {
+  var docId = reqStr_(p.docId, 'ID dokumen', 80);
+  var status = String(p.status || '');
+  if (STATUS_JADWAL.indexOf(status) < 0) throw new ApiError_('Status agenda tidak valid.', 'BAD_REQUEST');
+  var updates = {
+    tanggal: reqStr_(p.tanggal, 'Tanggal', 40),
+    waktu: reqStr_(p.waktu, 'Waktu', 40),
+    judulKegiatan: reqStr_(p.judulKegiatan, 'Judul kegiatan', 150),
+    lokasi: reqStr_(p.lokasi, 'Lokasi', 150),
+    status: status
+  };
+  return withLock_(function () {
+    if (!updateRow_('jadwal_kurban', docId, updates)) throw new ApiError_('Agenda tidak ditemukan.', 'NOT_FOUND');
+    return null;
+  });
+}
+
+function actJadwalDelete_(p) {
+  var docId = reqStr_(p.docId, 'ID dokumen', 80);
+  return withLock_(function () {
+    if (!deleteRow_('jadwal_kurban', docId)) throw new ApiError_('Agenda tidak ditemukan.', 'NOT_FOUND');
     return null;
   });
 }
@@ -654,6 +780,16 @@ function actPengumumanAdd_(p, user) {
       penulis: user.name,
       dibuatPada: Utilities.formatDate(now, tz, "yyyy-MM-dd'T'HH:mm:ss")
     });
+    return null;
+  });
+}
+
+function actPengumumanUpdate_(p) {
+  var docId = reqStr_(p.docId, 'ID dokumen', 80);
+  var judul = reqStr_(p.judul, 'Judul pengumuman', 150);
+  var isi = reqStr_(p.isiPesan, 'Isi pesan', 2000);
+  return withLock_(function () {
+    if (!updateRow_('pengumuman', docId, { judul: judul, isiPesan: isi })) throw new ApiError_('Pengumuman tidak ditemukan.', 'NOT_FOUND');
     return null;
   });
 }

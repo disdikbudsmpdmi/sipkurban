@@ -54,6 +54,18 @@ function renderPesertaView(container) {
                       ${terisi}/${klp.kapasitas} Slot
                     </span>
                   </div>
+                  ${isAdmin ? `
+                    <div class="flex justify-end gap-1 mt-2 -mb-1">
+                      <button onclick="openModalEditKelompok('${klp._docId}')" title="Edit Kelompok"
+                        class="p-1.5 rounded-lg bg-blue-50 hover:bg-[#0D47A1] text-[#0D47A1] hover:text-white transition-all cursor-pointer">
+                        <i data-lucide="pencil" class="w-3.5 h-3.5"></i>
+                      </button>
+                      <button onclick="hapusKelompok('${klp._docId}')" title="Hapus Kelompok"
+                        class="p-1.5 rounded-lg bg-rose-50 hover:bg-rose-600 text-rose-600 hover:text-white transition-all cursor-pointer">
+                        <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
+                      </button>
+                    </div>
+                  ` : ''}
                   <h4 class="font-extrabold text-sm text-slate-800 mt-3">${klp.namaKelompok}</h4>
                   <p class="text-[11px] text-slate-400 mt-0.5">Status: <strong class="text-slate-600">${klp.statusPengadaan}</strong></p>
 
@@ -137,6 +149,10 @@ function renderPesertaView(container) {
                           class="px-2.5 py-1.5 rounded-lg bg-blue-50 hover:bg-[#0D47A1] text-[#0D47A1] hover:text-white font-bold text-[11px] transition-all cursor-pointer mr-1">
                           + Setor
                         </button>
+                        <button onclick="openModalEditPeserta('${w._docId}')" title="Edit Peserta"
+                          class="p-1.5 rounded-lg bg-blue-50 hover:bg-[#0D47A1] text-[#0D47A1] hover:text-white transition-all cursor-pointer mr-1">
+                          <i data-lucide="pencil" class="w-3.5 h-3.5"></i>
+                        </button>
                         <button onclick="hapusPeserta('${w._docId}')" title="Hapus Peserta"
                           class="p-1.5 rounded-lg bg-rose-50 hover:bg-rose-600 text-rose-600 hover:text-white transition-all cursor-pointer">
                           <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
@@ -155,6 +171,7 @@ function renderPesertaView(container) {
 }
 
 window.openModalTambahPeserta = function () {
+  window._editPesertaDocId = null;
   const s = APP_STATE.settings;
   const hargaSapi = s?.hargaSapiPatungan || 3500000;
   const hargaKambing = s?.hargaKambingMandiri || 3200000;
@@ -235,13 +252,13 @@ window.openModalTambahPeserta = function () {
 };
 
 // Hanya tampilkan kelompok yang jenis hewannya cocok dengan paket yang dipilih.
-function kelompokOptionsHTML(jenis) {
+function kelompokOptionsHTML(jenis, selected = '', excludeDocId = '') {
   const list = APP_STATE.kelompok.filter(k => k.jenisHewan === jenis);
   if (list.length === 0) return '<option value="">(Belum ada kelompok untuk paket ini)</option>';
   return list.map(k => {
-    const terisi = APP_STATE.warga.filter(w => w.kelompokHewan === k.namaKelompok).length;
+    const terisi = APP_STATE.warga.filter(w => w.kelompokHewan === k.namaKelompok && w._docId !== excludeDocId).length;
     const penuh = terisi >= k.kapasitas;
-    return `<option value="${k.namaKelompok}" ${penuh ? 'disabled' : ''}>${k.namaKelompok} (${terisi}/${k.kapasitas}${penuh ? ' • penuh' : ''})</option>`;
+    return `<option value="${k.namaKelompok}" ${k.namaKelompok === selected ? 'selected' : ''} ${penuh ? 'disabled' : ''}>${k.namaKelompok} (${terisi}/${k.kapasitas}${penuh ? ' • penuh' : ''})</option>`;
   }).join('');
 }
 
@@ -249,7 +266,7 @@ window.onJenisPesertaChange = function (jenis) {
   const s = APP_STATE.settings;
   const harga = jenis === 'Sapi Patungan' ? (s?.hargaSapiPatungan || 3500000) : (s?.hargaKambingMandiri || 3200000);
   document.getElementById('inp-target').value = harga;
-  document.getElementById('inp-kelompok').innerHTML = kelompokOptionsHTML(jenis);
+  document.getElementById('inp-kelompok').innerHTML = kelompokOptionsHTML(jenis, '', window._editPesertaDocId || '');
 };
 
 window.openModalTambahKelompok = function () {
@@ -317,6 +334,172 @@ window.hapusPeserta = async function (docId) {
   await runBusy(null, async () => {
     await apiCall('warga_delete', { docId });
     showToast(`Peserta ${w.namaLengkap} telah dihapus dari daftar.`, 'info');
+    renderActivePageContent();
+  });
+};
+
+// -------------------------------------------------------------------------
+// EDIT PESERTA
+// -------------------------------------------------------------------------
+window.openModalEditPeserta = function (docId) {
+  const w = APP_STATE.warga.find(x => x._docId === docId);
+  if (!w) return;
+  window._editPesertaDocId = docId;
+  const inp = 'w-full px-3.5 py-2.5 rounded-xl border border-slate-200 outline-none focus:border-[#0D47A1]';
+
+  openModal(`
+    <div class="bg-white rounded-3xl max-w-lg w-full p-6 sm:p-7 shadow-2xl border border-slate-200 max-h-[92vh] overflow-y-auto">
+      <div class="flex items-center justify-between pb-4 border-b border-slate-100">
+        <h3 class="font-extrabold text-base text-slate-800">Edit Peserta (${w.idWarga})</h3>
+        <button onclick="closeModal()" class="text-slate-400 hover:text-slate-700 cursor-pointer"><i data-lucide="x" class="w-5 h-5"></i></button>
+      </div>
+      <form id="form-edit-peserta" class="space-y-4 mt-4 text-xs">
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div>
+            <label class="block font-bold text-slate-700 mb-1">Nama Lengkap Warga</label>
+            <input type="text" id="inp-nama" required value="${w.namaLengkap}" class="${inp}" />
+          </div>
+          <div>
+            <label class="block font-bold text-slate-700 mb-1">Blok & Nomor Rumah</label>
+            <input type="text" id="inp-blok" required value="${w.blokRumah}" class="${inp}" />
+          </div>
+        </div>
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div>
+            <label class="block font-bold text-slate-700 mb-1">Nomor HP / WhatsApp</label>
+            <input type="text" id="inp-hp" required value="${w.noHp || ''}" class="${inp}" />
+          </div>
+          <div>
+            <label class="block font-bold text-slate-700 mb-1">PIN Baru (opsional)</label>
+            <input type="text" id="inp-pin" maxlength="6" placeholder="Kosongkan jika tidak diubah" class="${inp}" />
+          </div>
+        </div>
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div>
+            <label class="block font-bold text-slate-700 mb-1">Paket Hewan Kurban</label>
+            <select id="inp-jenis" onchange="onJenisPesertaChange(this.value)" class="${inp}">
+              <option value="Sapi Patungan" ${w.jenisKurban === 'Sapi Patungan' ? 'selected' : ''}>Sapi Patungan (1/7)</option>
+              <option value="Kambing" ${w.jenisKurban === 'Kambing' ? 'selected' : ''}>Kambing Mandiri</option>
+            </select>
+          </div>
+          <div>
+            <label class="block font-bold text-slate-700 mb-1">Target Iuran (Rp)</label>
+            <input type="number" id="inp-target" required value="${w.targetIuran}" class="${inp}" />
+          </div>
+        </div>
+        <div>
+          <label class="block font-bold text-slate-700 mb-1">Alokasi Kelompok Hewan</label>
+          <select id="inp-kelompok" class="${inp}">
+            ${kelompokOptionsHTML(w.jenisKurban, w.kelompokHewan, docId)}
+          </select>
+        </div>
+        <p class="text-[11px] text-slate-400">Total terbayar (${formatRupiah(w.totalTerbayar)}) tidak berubah. Status lunas dihitung ulang dari target iuran.</p>
+        <div class="pt-3 flex justify-end gap-2">
+          <button type="button" onclick="closeModal()" class="px-4 py-2.5 rounded-xl bg-slate-100 text-slate-600 font-bold cursor-pointer">Batal</button>
+          <button type="submit" class="px-5 py-2.5 rounded-xl bg-[#0D47A1] text-white font-bold cursor-pointer">Simpan Perubahan</button>
+        </div>
+      </form>
+    </div>
+  `);
+
+  document.getElementById('form-edit-peserta').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const btn = e.submitter || e.target.querySelector('[type=submit]');
+    await runBusy(btn, async () => {
+      await apiCall('warga_update', {
+        docId,
+        namaLengkap: document.getElementById('inp-nama').value.trim(),
+        blokRumah: document.getElementById('inp-blok').value.trim(),
+        noHp: document.getElementById('inp-hp').value.trim(),
+        newPin: document.getElementById('inp-pin').value.trim(),
+        jenisKurban: document.getElementById('inp-jenis').value,
+        kelompokHewan: document.getElementById('inp-kelompok').value,
+        targetIuran: Number(document.getElementById('inp-target').value)
+      });
+      window._editPesertaDocId = null;
+      closeModal();
+      showToast('Data peserta berhasil diperbarui!', 'success');
+      renderActivePageContent();
+    });
+  });
+};
+
+// -------------------------------------------------------------------------
+// EDIT & HAPUS KELOMPOK
+// -------------------------------------------------------------------------
+window.openModalEditKelompok = function (docId) {
+  const klp = APP_STATE.kelompok.find(k => k._docId === docId);
+  if (!klp) return;
+  const jumlah = APP_STATE.warga.filter(w => w.kelompokHewan === klp.namaKelompok).length;
+  const inp = 'w-full px-3.5 py-2.5 rounded-xl border border-slate-200 outline-none focus:border-[#0D47A1]';
+
+  openModal(`
+    <div class="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl border border-slate-200">
+      <div class="flex items-center justify-between pb-4 border-b border-slate-100">
+        <h3 class="font-extrabold text-base text-slate-800">Edit Kelompok Hewan Kurban</h3>
+        <button onclick="closeModal()" class="text-slate-400 hover:text-slate-700 cursor-pointer"><i data-lucide="x" class="w-5 h-5"></i></button>
+      </div>
+      <form id="form-edit-kelompok" class="space-y-4 mt-4 text-xs">
+        <div>
+          <label class="block font-bold text-slate-700 mb-1">Nama Kelompok</label>
+          <input type="text" id="klp-nama" required value="${klp.namaKelompok}" class="${inp}" />
+        </div>
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block font-bold text-slate-700 mb-1">Jenis Hewan</label>
+            <select id="klp-jenis" ${jumlah > 0 ? 'disabled' : ''} class="${inp} disabled:bg-slate-50 disabled:text-slate-400">
+              <option value="Sapi Patungan" ${klp.jenisHewan === 'Sapi Patungan' ? 'selected' : ''}>Sapi Patungan</option>
+              <option value="Kambing" ${klp.jenisHewan === 'Kambing' ? 'selected' : ''}>Kambing</option>
+            </select>
+          </div>
+          <div>
+            <label class="block font-bold text-slate-700 mb-1">Kapasitas Slot</label>
+            <input type="number" id="klp-kapasitas" required min="${Math.max(1, jumlah)}" value="${klp.kapasitas}" class="${inp}" />
+          </div>
+        </div>
+        ${jumlah > 0 ? `<p class="text-[11px] text-slate-400">Jenis hewan terkunci & kapasitas minimal ${jumlah} karena sudah ada ${jumlah} peserta.</p>` : ''}
+        <div>
+          <label class="block font-bold text-slate-700 mb-1">Status Pengadaan</label>
+          <input type="text" id="klp-status" required value="${klp.statusPengadaan}" class="${inp}" />
+        </div>
+        <div class="pt-3 flex justify-end gap-2">
+          <button type="button" onclick="closeModal()" class="px-4 py-2.5 rounded-xl bg-slate-100 text-slate-600 font-bold cursor-pointer">Batal</button>
+          <button type="submit" class="px-5 py-2.5 rounded-xl bg-[#0D47A1] text-white font-bold cursor-pointer">Simpan Perubahan</button>
+        </div>
+      </form>
+    </div>
+  `);
+
+  document.getElementById('form-edit-kelompok').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const btn = e.submitter || e.target.querySelector('[type=submit]');
+    await runBusy(btn, async () => {
+      await apiCall('kelompok_update', {
+        docId,
+        namaKelompok: document.getElementById('klp-nama').value.trim(),
+        jenisHewan: document.getElementById('klp-jenis').value,
+        kapasitas: Number(document.getElementById('klp-kapasitas').value),
+        statusPengadaan: document.getElementById('klp-status').value.trim()
+      });
+      closeModal();
+      showToast('Kelompok hewan kurban berhasil diperbarui!', 'success');
+      renderActivePageContent();
+    });
+  });
+};
+
+window.hapusKelompok = async function (docId) {
+  const klp = APP_STATE.kelompok.find(k => k._docId === docId);
+  if (!klp) return;
+  const jumlah = APP_STATE.warga.filter(w => w.kelompokHewan === klp.namaKelompok).length;
+  if (jumlah > 0) {
+    showToast(`Kelompok masih memiliki ${jumlah} peserta. Pindahkan atau hapus pesertanya terlebih dahulu.`, 'error');
+    return;
+  }
+  if (!confirm(`Hapus kelompok "${unesc(klp.namaKelompok)}"?`)) return;
+  await runBusy(null, async () => {
+    await apiCall('kelompok_delete', { docId });
+    showToast('Kelompok hewan telah dihapus.', 'info');
     renderActivePageContent();
   });
 };
