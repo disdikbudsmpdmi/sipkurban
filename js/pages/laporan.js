@@ -123,6 +123,9 @@ function renderLaporanView(container) {
   const rtName = s?.namaRT || 'RT 05 / RW 03 Perumahan Griya Asri';
   const tahunHijriah = s?.tahunHijriah || '1448 H / 2027 M';
   const tanggalCetak = fmtTgl(new Date());
+  const BULAN_PANJANG = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
+  const now_ = new Date();
+  const tempatTanggalTTD = `Dumai, ${now_.getDate()} ${BULAN_PANJANG[now_.getMonth()]} ${now_.getFullYear()}`;
 
   const totalTargetAll = APP_STATE.warga.reduce((acc, w) => acc + Number(w.targetIuran || 0), 0);
   const totalTerkumpulAll = APP_STATE.warga.reduce((acc, w) => acc + Number(w.totalTerbayar || 0), 0);
@@ -548,7 +551,7 @@ function renderLaporanView(container) {
             <p class="text-[10px] text-slate-400 mt-0.5">Pengurus Lingkungan RT</p>
           </div>
           <div>
-            <p class="text-slate-600">${tanggalCetak}</p>
+            <p class="text-slate-600">${tempatTanggalTTD}</p>
             <p class="font-bold text-slate-800">Ketua / Bendahara Panitia Kurban</p>
             <div class="h-16"></div>
             <p class="font-extrabold text-slate-900 underline">( ${s?.namaKetuaPanitia || 'H. Iwin'} )</p>
