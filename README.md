@@ -40,11 +40,13 @@ sipkurban/
 | Properti | Isi bawaan | Keterangan |
 |---|---|---|
 | `ADMIN_EMAIL` | `admin@rt05.id` | email login admin |
-| `ADMIN_PASSWORD` | `admin123` | **ganti!** |
+| `ADMIN_PASSWORD` | acak 12 karakter (instalasi baru) | tampil di *Executions/Execution log* saat `setup` berjalan; ganti lewat menu **Profil**. Instalasi lama yang masih `admin123` akan melihat banner peringatan merah di dashboard |
 | `ADMIN_NAME` | `H. Hendra (Ketua Panitia)` | nama di kuitansi/pengumuman |
 | `TOKEN_SECRET`, `PIN_SALT` | otomatis | jangan diubah (mengubah `PIN_SALT` membuat semua PIN lama tidak berlaku) |
 
 PIN warga data contoh = `1234` — hapus/ganti data contoh sebelum produksi. PIN disimpan sebagai hash di kolom `pinHash`.
+
+**PIN warga baru = 6 digit.** Saat mendaftarkan warga, kolom PIN boleh dikosongkan: server membuat PIN acak dan menampilkannya **sekali** (lengkap dengan tombol kirim via WhatsApp). PIN lama 4 digit tetap bisa dipakai login; PIN baru dari admin wajib 6 digit. Warga belum bisa mengganti PIN sendiri — kalau lupa, admin mengisi *PIN Baru* di Edit Peserta.
 
 ## 3. Hubungkan & deploy frontend
 
@@ -61,7 +63,9 @@ Hosting: GitHub Pages, Netlify, Cloudflare Pages, atau hosting biasa — cukup u
 ## Catatan teknis
 
 - **Keamanan:** login diverifikasi server; token bertanda tangan HMAC berlaku 12 jam; gagal login 5× memblokir 15 menit; semua aksi tulis hanya untuk admin; nominal, saldo, status lunas, nomor kuitansi & ID dihitung server.
-- **Privasi warga:** warga hanya melihat transaksi miliknya dan tidak menerima No. HP/PIN warga lain. Laporan *Mutasi Kas* khusus admin.
+- **Privasi warga:** server hanya mengirim data **dirinya sendiri** ke warga biasa (profil, progres iuran, transaksi). Warga lain hanya muncul sebagai *nama* pada daftar anggota kelompok hewan, tanpa blok, HP, nominal, atau status lunas. Total RT di dashboard dihitung server (`ringkasan`). Laporan *Rekapitulasi*, *Kelompok Hewan*, dan *Mutasi Kas* khusus admin; warga hanya bisa mencetak Kartu Kendali pribadi.
+- **Pengingat WhatsApp:** admin membuka *Peserta → Ingatkan Tagihan* (massal) atau ikon WhatsApp di baris warga (satuan). Aplikasi hanya membuka `wa.me` dengan pesan siap kirim; pengiriman tetap dengan menekan tombol kirim di WhatsApp. Info rekening/QRIS disimpan di browser admin (localStorage), bukan di server.
+- **Ikon & library:** ikon PWA kini lokal (`assets/icon-*.png`). Tailwind dan Lucide dipin ke versi tetap di `index.html`.
 - **Data:** boleh diedit langsung di Spreadsheet (jangan ubah header/kolom `_docId`). Hapus baris = hapus data.
 - **Kecepatan:** Apps Script punya *cold start* 1–5 detik; indikator loading di atas layar menandakan permintaan berjalan.
 - **Backup:** gunakan File → Version history di Spreadsheet.

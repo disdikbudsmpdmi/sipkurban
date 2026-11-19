@@ -1,6 +1,6 @@
 // Service Worker sederhana: network-first untuk berkas statis aplikasi sendiri.
 // Permintaan ke Apps Script (lintas-origin, POST) tidak pernah di-cache.
-const CACHE_NAME = 'sipkurban-rt-v2';
+const CACHE_NAME = 'sipkurban-rt-v3';
 
 self.addEventListener('install', () => self.skipWaiting());
 
