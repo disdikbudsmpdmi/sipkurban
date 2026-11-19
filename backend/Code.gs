@@ -38,9 +38,23 @@ var DEFAULT_LOGO = 'https://placehold.co/128x128/0D47A1/FFFFFF?text=RT05';
  * angka 0 dan tanggal "2026-11-10" tidak diubah menjadi objek Date.
  * Kolom ids disanitasi (hanya huruf/angka/_/-) karena dipakai di atribut HTML.
  */
+var KATEGORI_KELUAR = ['Pembelian Hewan', 'Upah Jagal', 'Perlengkapan', 'Konsumsi', 'Transport', 'Lainnya'];
+var KATEGORI_PENERIMA = ['Shohibul Kurban', 'Warga', 'Dhuafa', 'Panitia'];
+var STATUS_DISTRIBUSI = ['Belum Diambil', 'Sudah Diambil'];
+
 var SCHEMA = {
+  pengeluaran: {
+    cols: ['_docId', 'idPengeluaran', 'tanggal', 'kategori', 'keterangan', 'nominal', 'dicatatOleh'],
+    types: { nominal: 'n' },
+    ids: ['_docId', 'idPengeluaran']
+  },
+  distribusi: {
+    cols: ['_docId', 'idDistribusi', 'namaPenerima', 'kategori', 'jumlahKupon', 'status', 'idWarga', 'catatan'],
+    types: { jumlahKupon: 'n' },
+    ids: ['_docId', 'idDistribusi', 'idWarga']
+  },
   settings_kurban: {
-    cols: ['_docId', 'namaRT', 'tahunHijriah', 'tanggalIdulAdha', 'hargaSapiPatungan', 'hargaKambingMandiri', 'kontakPanitia', 'alamatSekretariat', 'logoUrl', 'namaKetuaRT', 'namaKetuaPanitia'],
+    cols: ['_docId', 'namaRT', 'tahunHijriah', 'tanggalIdulAdha', 'hargaSapiPatungan', 'hargaKambingMandiri', 'kontakPanitia', 'alamatSekretariat', 'logoUrl', 'namaKetuaRT', 'namaKetuaPanitia', 'infoBayar'],
     types: { hargaSapiPatungan: 'n', hargaKambingMandiri: 'n' },
     ids: ['_docId']
   },
@@ -130,6 +144,15 @@ var ROUTES = {
   pengumuman_update:  { auth: 'admin',  fn: actPengumumanUpdate_, snapshot: true },
   pengumuman_delete:  { auth: 'admin',  fn: actPengumumanDelete_, snapshot: true },
   settings_update:    { auth: 'admin',  fn: actSettingsUpdate_,   snapshot: true },
+  pengeluaran_add:    { auth: 'admin',  fn: actPengeluaranAdd_,    snapshot: true },
+  pengeluaran_update: { auth: 'admin',  fn: actPengeluaranUpdate_, snapshot: true },
+  pengeluaran_delete: { auth: 'admin',  fn: actPengeluaranDelete_, snapshot: true },
+  distribusi_add:     { auth: 'admin',  fn: actDistribusiAdd_,     snapshot: true },
+  distribusi_update:  { auth: 'admin',  fn: actDistribusiUpdate_,  snapshot: true },
+  distribusi_delete:  { auth: 'admin',  fn: actDistribusiDelete_,  snapshot: true },
+  distribusi_set_status: { auth: 'admin', fn: actDistribusiSetStatus_, snapshot: true },
+  distribusi_generate:{ auth: 'admin',  fn: actDistribusiGenerate_, snapshot: true },
+  info_bayar_update:  { auth: 'admin',  fn: actInfoBayarUpdate_,  snapshot: true },
   admin_account_update: { auth: 'admin', fn: actAdminAccountUpdate_ }
 };
 
@@ -345,6 +368,8 @@ function buildSnapshot_(user) {
   var trxRaw = readAll_('transaksi_iuran');
   var kelompok = readAll_('kelompok_hewan');
   var jadwal = readAll_('jadwal_kurban');
+  var pengeluaranRaw = readAll_('pengeluaran');
+  var distRaw = readAll_('distribusi');
   var pengumuman = readAll_('pengumuman').sort(function (a, b) {
     return String(b.dibuatPada).localeCompare(String(a.dibuatPada));
   });
@@ -377,6 +402,13 @@ function buildSnapshot_(user) {
     if (w.statusLunas || Number(w.totalTerbayar || 0) >= Number(w.targetIuran || 0)) ringkasan.jumlahLunas++;
     if (w.jenisKurban === 'Sapi Patungan') ringkasan.jumlahSapi++;
     if (w.jenisKurban === 'Kambing') ringkasan.jumlahKambing++;
+  });
+
+  ringkasan.totalPengeluaran = 0; ringkasan.kuponTotal = 0; ringkasan.kuponDiambil = 0; ringkasan.jumlahPenerima = distRaw.length;
+  pengeluaranRaw.forEach(function (x) { ringkasan.totalPengeluaran += Number(x.nominal || 0); });
+  distRaw.forEach(function (d) {
+    ringkasan.kuponTotal += Number(d.jumlahKupon || 0);
+    if (d.status === 'Sudah Diambil') ringkasan.kuponDiambil += Number(d.jumlahKupon || 0);
   });
 
   var wargaOut, trxOut, anggotaKelompok;
@@ -415,6 +447,8 @@ function buildSnapshot_(user) {
     transaksi: trxOut,
     kelompok: kelompok,
     jadwal: jadwal,
+    pengeluaran: isAdmin ? pengeluaranRaw : [],
+    distribusi: isAdmin ? distRaw : distRaw.filter(function (d) { return d.idWarga === user.id; }),
     pengumuman: pengumuman,
     tren: tren,
     ringkasan: ringkasan,
@@ -809,6 +843,120 @@ function actJadwalSetStatus_(p) {
   return withLock_(function () {
     if (!updateRow_('jadwal_kurban', docId, { status: status })) throw new ApiError_('Agenda tidak ditemukan.', 'NOT_FOUND');
     return { status: status };
+  });
+}
+
+// ---- PENGELUARAN KAS ----
+function pengeluaranFields_(p) {
+  var kat = String(p.kategori || '');
+  if (KATEGORI_KELUAR.indexOf(kat) < 0) throw new ApiError_('Kategori pengeluaran tidak valid.', 'BAD_REQUEST');
+  var tgl = String(p.tanggal || '');
+  if (!isValidIsoDate_(tgl)) throw new ApiError_('Tanggal tidak valid.', 'BAD_REQUEST');
+  return { tanggal: tgl, kategori: kat, keterangan: reqStr_(p.keterangan, 'Keterangan', 150), nominal: posNum_(p.nominal, 'Nominal') };
+}
+function actPengeluaranAdd_(p, user) {
+  var f = pengeluaranFields_(p);
+  return withLock_(function () {
+    var list = readAll_('pengeluaran');
+    f._docId = Utilities.getUuid();
+    f.idPengeluaran = 'KLR-' + nextNumber_(list, 'idPengeluaran', 'KLR-');
+    f.dicatatOleh = user.name || 'Admin';
+    appendObj_('pengeluaran', f);
+    return null;
+  });
+}
+function actPengeluaranUpdate_(p) {
+  var docId = reqStr_(p.docId, 'ID dokumen', 80);
+  var f = pengeluaranFields_(p);
+  return withLock_(function () {
+    if (!updateRow_('pengeluaran', docId, f)) throw new ApiError_('Data tidak ditemukan.', 'NOT_FOUND');
+    return null;
+  });
+}
+function actPengeluaranDelete_(p) {
+  var docId = reqStr_(p.docId, 'ID dokumen', 80);
+  return withLock_(function () {
+    if (!deleteRow_('pengeluaran', docId)) throw new ApiError_('Data tidak ditemukan.', 'NOT_FOUND');
+    return null;
+  });
+}
+
+// ---- DISTRIBUSI DAGING ----
+function distribusiFields_(p) {
+  var kat = String(p.kategori || '');
+  if (KATEGORI_PENERIMA.indexOf(kat) < 0) throw new ApiError_('Kategori penerima tidak valid.', 'BAD_REQUEST');
+  return {
+    namaPenerima: reqStr_(p.namaPenerima, 'Nama penerima', 100),
+    kategori: kat,
+    jumlahKupon: posNum_(p.jumlahKupon, 'Jumlah kupon'),
+    idWarga: optStr_(p.idWarga, 40).replace(/[^\w\-]/g, ''),
+    catatan: optStr_(p.catatan, 150)
+  };
+}
+function actDistribusiAdd_(p) {
+  var f = distribusiFields_(p);
+  return withLock_(function () {
+    var list = readAll_('distribusi');
+    f._docId = Utilities.getUuid();
+    f.idDistribusi = 'DST-' + nextNumber_(list, 'idDistribusi', 'DST-');
+    f.status = 'Belum Diambil';
+    appendObj_('distribusi', f);
+    return null;
+  });
+}
+function actDistribusiUpdate_(p) {
+  var docId = reqStr_(p.docId, 'ID dokumen', 80);
+  var f = distribusiFields_(p);
+  return withLock_(function () {
+    if (!updateRow_('distribusi', docId, f)) throw new ApiError_('Data tidak ditemukan.', 'NOT_FOUND');
+    return null;
+  });
+}
+function actDistribusiDelete_(p) {
+  var docId = reqStr_(p.docId, 'ID dokumen', 80);
+  return withLock_(function () {
+    if (!deleteRow_('distribusi', docId)) throw new ApiError_('Data tidak ditemukan.', 'NOT_FOUND');
+    return null;
+  });
+}
+function actDistribusiSetStatus_(p) {
+  var docId = reqStr_(p.docId, 'ID dokumen', 80);
+  var status = String(p.status || '');
+  if (STATUS_DISTRIBUSI.indexOf(status) < 0) throw new ApiError_('Status tidak valid.', 'BAD_REQUEST');
+  return withLock_(function () {
+    if (!updateRow_('distribusi', docId, { status: status })) throw new ApiError_('Data tidak ditemukan.', 'NOT_FOUND');
+    return null;
+  });
+}
+/** Buat daftar penerima otomatis dari seluruh peserta yang belum punya kupon. */
+function actDistribusiGenerate_(p) {
+  var kupon = Math.max(1, Math.min(50, Math.floor(Number(p.jumlahKupon) || 1)));
+  return withLock_(function () {
+    var list = readAll_('distribusi');
+    var have = {};
+    list.forEach(function (d) { if (d.idWarga) have[d.idWarga] = true; });
+    var added = 0;
+    readAll_('users_warga').forEach(function (w) {
+      if (have[w.idWarga]) return;
+      var id = 'DST-' + nextNumber_(list, 'idDistribusi', 'DST-');
+      appendObj_('distribusi', { _docId: Utilities.getUuid(), idDistribusi: id, namaPenerima: w.namaLengkap, kategori: 'Shohibul Kurban',
+        jumlahKupon: kupon, status: 'Belum Diambil', idWarga: w.idWarga, catatan: '' });
+      list.push({ idDistribusi: id });
+      added++;
+    });
+    return { added: added };
+  });
+}
+
+// ---- INFO PEMBAYARAN (tampil ke warga) ----
+function actInfoBayarUpdate_(p) {
+  var v = optStr_(p.infoBayar, 500);
+  return withLock_(function () {
+    var s = readAll_('settings_kurban')[0];
+    if (!s) throw new ApiError_('Data pengaturan tidak ditemukan.', 'NOT_FOUND');
+    getSheet_('settings_kurban').getRange(1, 1, 1, SCHEMA.settings_kurban.cols.length).setValues([SCHEMA.settings_kurban.cols]);
+    updateRow_('settings_kurban', s._docId, { infoBayar: v });
+    return null;
   });
 }
 
