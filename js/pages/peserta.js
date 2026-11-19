@@ -522,11 +522,14 @@ window.hapusKelompok = async function (docId) {
 const WA_INFO_KEY = 'sipkurban_info_bayar';
 const _waTerkirim = new Set();   // penanda sesi: peserta yang sudah dibuka WA-nya
 
+let _infoTimer;
 function getInfoBayar() {
-  try { return localStorage.getItem(WA_INFO_KEY) || ''; } catch (e) { return ''; }
+  return unesc(APP_STATE.settings?.infoBayar || '');
 }
 function setInfoBayar(v) {
-  try { localStorage.setItem(WA_INFO_KEY, v); } catch (e) {}
+  if (APP_STATE.settings) APP_STATE.settings.infoBayar = v;
+  clearTimeout(_infoTimer);
+  _infoTimer = setTimeout(() => { apiCall('info_bayar_update', { infoBayar: v }).catch(() => {}); }, 800);
 }
 
 function sisaTagihan(w) {
@@ -588,8 +591,8 @@ window.openModalPengingat = function (idWarga) {
       </div>
       <div class="space-y-4 mt-4 text-xs">
         <div>
-          <label class="block font-bold text-slate-700 mb-1">Info pembayaran (rekening / QRIS) — tersimpan di perangkat ini</label>
-          <textarea id="wa-info" rows="2" placeholder="Contoh: BSI 1234567890 a.n. Bendahara Kurban"
+          <label class="block font-bold text-slate-700 mb-1">Info pembayaran (rekening / QRIS) — tersimpan di server & tampil ke warga</label>
+          <textarea id="wa-info" rows="2" oninput="setInfoBayar(this.value)" placeholder="Contoh: BSI 1234567890 a.n. Bendahara Kurban"
             class="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 outline-none focus:border-[#0D47A1] resize-none">${info}</textarea>
         </div>
         <div>
@@ -651,7 +654,7 @@ window.openModalPengingatMassal = function () {
       </div>
       <div class="mt-4 text-xs space-y-4">
         <div>
-          <label class="block font-bold text-slate-700 mb-1">Info pembayaran (rekening / QRIS) — ikut dalam pesan</label>
+          <label class="block font-bold text-slate-700 mb-1">Info pembayaran (rekening / QRIS) — tersimpan di server & ikut dalam pesan</label>
           <textarea id="wa-info" rows="2" placeholder="Contoh: BSI 1234567890 a.n. Bendahara Kurban"
             oninput="setInfoBayar(this.value)"
             class="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 outline-none focus:border-[#0D47A1] resize-none">${info}</textarea>

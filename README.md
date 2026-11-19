@@ -70,3 +70,10 @@ Hosting: GitHub Pages, Netlify, Cloudflare Pages, atau hosting biasa — cukup u
 - **Kecepatan:** Apps Script punya *cold start* 1–5 detik; indikator loading di atas layar menandakan permintaan berjalan.
 - **Backup:** gunakan File → Version history di Spreadsheet.
 # sipkurban
+
+## Pembaruan menu (v4)
+- **Menu berbasis peran:** warga tidak lagi melihat *Cetak Laporan* (tombol "Cetak Kartu Kendali" ada di *Iuran Saya*).
+- **Kas & Iuran:** tab baru *Pengeluaran* (admin) + saldo kas. Sheet `pengeluaran` dibuat otomatis.
+- **Jadwal & Distribusi:** tab baru *Distribusi Daging* / *Kupon Daging*. Sheet `distribusi` dibuat otomatis; warga hanya melihat kuponnya sendiri.
+- **Info pembayaran** kini disimpan di server (kolom `infoBayar` di `settings_kurban`) dan tampil ke warga. Isi ulang sekali lewat *Peserta → Ingatkan Tagihan*.
+- Badge lonceng kini menghitung pengumuman yang belum dibaca. **Deploy ulang Code.gs (New version)** setelah update.

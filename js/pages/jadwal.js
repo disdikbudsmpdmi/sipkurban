@@ -1,7 +1,7 @@
 // =========================================================================
 // 11. HALAMAN 4: JADWAL & DISTRIBUSI KURBAN
 // =========================================================================
-function renderJadwalView(container) {
+function renderAgendaView(container) {
   const isAdmin = APP_STATE.currentUser.role === 'admin';
   refreshJadwalStatus();
 

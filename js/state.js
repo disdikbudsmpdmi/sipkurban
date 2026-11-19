@@ -9,6 +9,9 @@ const APP_STATE = {
   transaksi: [],
   kelompok: [],
   jadwal: [],
+  pengeluaran: [],
+  distribusi: [],
+  tab: { iuran: 'setoran', jadwal: 'agenda' },
   pengumuman: [],
   ringkasan: null,          // agregat RT dari server (aman untuk warga)
   anggotaKelompok: [],      // khusus warga: {namaKelompok, namaLengkap} tanpa data keuangan
@@ -220,6 +223,8 @@ function applySnapshot(snap) {
   APP_STATE.transaksi = (snap.transaksi || []).slice().sort((a, b) => (b.tanggalSetor || '').localeCompare(a.tanggalSetor || ''));
   APP_STATE.kelompok = snap.kelompok || [];
   APP_STATE.jadwal = snap.jadwal || [];
+  APP_STATE.pengeluaran = (snap.pengeluaran || []).slice().sort((a, b) => (b.tanggal || '').localeCompare(a.tanggal || ''));
+  APP_STATE.distribusi = snap.distribusi || [];
   refreshJadwalStatus();
   APP_STATE.pengumuman = snap.pengumuman || [];
   APP_STATE.tren = snap.tren || [];

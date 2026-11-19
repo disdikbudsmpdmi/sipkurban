@@ -1,7 +1,7 @@
 // =========================================================================
 // 10. HALAMAN 3: CATAT & RIWAYAT IURAN + KUITANSI DIGITAL SIAP CETAK
 // =========================================================================
-function renderIuranView(container) {
+function renderSetoranView(container) {
   const user = APP_STATE.currentUser;
   const isAdmin = user.role === 'admin';
   const q = APP_STATE.searchQuery;

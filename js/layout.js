@@ -3,15 +3,33 @@
 // =========================================================================
 const MENU_ITEMS = [
   { id: 'dashboard', label: 'Dashboard', shortLabel: 'Beranda', icon: 'layout-dashboard' },
-  { id: 'peserta', label: 'Peserta & Kelompok', shortLabel: 'Peserta', icon: 'users' },
-  { id: 'iuran', label: 'Catat & Riwayat Iuran', shortLabel: 'Iuran', icon: 'wallet' },
-  { id: 'laporan', label: 'Cetak Laporan', shortLabel: 'Laporan', icon: 'printer' },
-  { id: 'jadwal', label: 'Jadwal & Distribusi', shortLabel: 'Jadwal', icon: 'calendar-clock' },
+  { id: 'peserta', label: 'Peserta & Kelompok', shortLabel: 'Peserta', icon: 'users', warga: { label: 'Kelompok Saya', shortLabel: 'Kelompok' } },
+  { id: 'iuran', label: 'Kas & Iuran', shortLabel: 'Kas', icon: 'wallet', warga: { label: 'Iuran Saya', shortLabel: 'Iuran' } },
+  { id: 'laporan', label: 'Cetak Laporan', shortLabel: 'Laporan', icon: 'printer', adminOnly: true },
+  { id: 'jadwal', label: 'Jadwal & Distribusi', shortLabel: 'Jadwal', icon: 'calendar-clock', warga: { label: 'Jadwal & Kupon', shortLabel: 'Jadwal' } },
   { id: 'pengumuman', label: 'Pengumuman RT', shortLabel: 'Info RT', icon: 'megaphone' },
   { id: 'profil', label: 'Profil & Pengaturan', shortLabel: 'Akun', icon: 'settings' }
 ];
 
+function getMenuItems() {
+  const isAdmin = APP_STATE.currentUser && APP_STATE.currentUser.role === 'admin';
+  return MENU_ITEMS.filter(m => isAdmin || !m.adminOnly).map(m => (!isAdmin && m.warga) ? { ...m, ...m.warga } : m);
+}
+
+const ANN_SEEN_KEY = 'sipkurban_ann_seen';
+function unreadAnn() {
+  let seen = '';
+  try { seen = localStorage.getItem(ANN_SEEN_KEY) || ''; } catch (e) {}
+  return APP_STATE.pengumuman.filter(a => String(a.dibuatPada || '') > seen).length;
+}
+function markAnnSeen() {
+  const max = APP_STATE.pengumuman.reduce((m, a) => (String(a.dibuatPada || '') > m ? String(a.dibuatPada) : m), '');
+  try { localStorage.setItem(ANN_SEEN_KEY, max); } catch (e) {}
+}
+
 window.navigateMenu = function (menuId) {
+  if (menuId === 'laporan' && APP_STATE.currentUser.role !== 'admin') menuId = 'iuran';
+  if (menuId === 'pengumuman') markAnnSeen();
   APP_STATE.activeMenu = menuId;
   renderMainApp();
   const wrapper = document.getElementById('sipkurban-root-wrapper');
@@ -50,7 +68,7 @@ function renderMainApp() {
 
             <!-- Daftar Menu Navigasi -->
             <nav class="sidebar-nav flex-1 min-h-0 overflow-y-auto overscroll-contain p-4 space-y-1.5">
-              ${MENU_ITEMS.map(item => {
+              ${getMenuItems().map(item => {
                 const active = APP_STATE.activeMenu === item.id;
                 return `
                   <button onclick="navigateMenu('${item.id}')"
@@ -107,7 +125,7 @@ function renderMainApp() {
             </div>
 
             <!-- Search Bar -->
-            <div class="hidden md:flex items-center flex-1 max-w-md mx-4">
+            <div class="hidden ${['peserta', 'iuran'].includes(APP_STATE.activeMenu) ? 'md:flex' : ''} items-center flex-1 max-w-md mx-4">
               <div class="relative w-full">
                 <i data-lucide="search" class="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2"></i>
                 <input type="text" value="${APP_STATE.searchQuery}" oninput="handleGlobalSearch(this.value)"
@@ -121,9 +139,7 @@ function renderMainApp() {
               <button onclick="navigateMenu('pengumuman')" title="Pengumuman Panitia"
                 class="relative w-9 h-9 rounded-xl bg-[#F4F7FE] hover:bg-blue-50 text-slate-600 hover:text-[#0D47A1] flex items-center justify-center transition-all cursor-pointer">
                 <i data-lucide="bell" class="w-4 h-4"></i>
-                <span class="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-rose-500 text-white text-[10px] font-bold flex items-center justify-center">
-                  ${APP_STATE.pengumuman.length}
-                </span>
+                ${unreadAnn() ? `<span class="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-rose-500 text-white text-[10px] font-bold flex items-center justify-center">${unreadAnn()}</span>` : ''}
               </button>
 
               <div onclick="navigateMenu('profil')" class="flex items-center gap-2.5 pl-2 border-l border-slate-200 cursor-pointer">
@@ -167,7 +183,7 @@ function renderMainApp() {
 
       <!-- FLOATING BOTTOM NAVIGATION BAR (MOBILE) -->
       <nav class="lg:hidden fixed bottom-3 inset-x-2 z-40 bg-white/95 backdrop-blur-md border border-slate-200/90 shadow-[0_8px_30px_rgba(15,23,42,0.12)] rounded-2xl px-1.5 py-1.5 flex items-center justify-around no-print">
-        ${MENU_ITEMS.slice(0, 6).map(item => {
+        ${getMenuItems().slice(0, 6).map(item => {
           const active = APP_STATE.activeMenu === item.id;
           return `
             <button onclick="navigateMenu('${item.id}')"
